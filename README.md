@@ -2,7 +2,8 @@
 
 ## Core Technology
 
-![gtkwave](docs/software/2024-11-21_23-38.png)
+![gtkwave safety](docs/software/2024-11-21_23-38.png)
+![gtkwave sensors](docs/software/2024-11-22_00-04.png)
 
 ### Molecular Dispensing System
 1. **Precision Control**

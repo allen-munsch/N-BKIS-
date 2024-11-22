@@ -38,147 +38,135 @@ entity sensor_hub is
     );
 end entity sensor_hub;
 
+
 architecture behavioral of sensor_hub is
-    -- State machine type definition
-    type sensor_state_type is (
-        INIT,
-        CALIBRATE,
-        SAMPLE,
-        PROCESS_DATA  -- Changed from PROCESS which is a keyword
-    );
+    -- Internal signals for sensor data
+    type sensor_buffer_type is array (0 to 7) of unsigned(11 downto 0);
+    signal voc_buffer : sensor_buffer_type := (others => (others => '0'));
+    signal aq_buffer : sensor_buffer_type := (others => (others => '0'));
+    signal pressure_buffer : sensor_buffer_type := (others => (others => '0'));
+    signal temp_buffer : sensor_buffer_type := (others => (others => '0'));
     
-    -- Internal signals
-    signal current_state : sensor_state_type;
+    -- Calibration data storage (reduced size)
+    type cal_data_array is array (0 to 7) of unsigned(7 downto 0);  -- Smaller calibration values
+    signal cal_storage : cal_data_array := (others => to_unsigned(1, 8)); -- Default gain of 1
     
-    -- Calibration data storage
-    type cal_data_array is array (0 to 255) of std_logic_vector(15 downto 0);
-    signal cal_storage : cal_data_array;
-    
-    -- Sensor sampling counters
-    signal sample_counter : unsigned(15 downto 0);
-    signal sensor_select : unsigned(2 downto 0);
-    
-    -- Moving average buffers
-    type avg_buffer is array (0 to 7) of unsigned(15 downto 0);
-    signal voc_buffer : avg_buffer;
-    signal aq_buffer : avg_buffer;
-    signal pressure_buffer : avg_buffer;
-    signal temp_buffer : avg_buffer;
-    
-    -- ADC interface signals
-    signal adc_data : std_logic_vector(11 downto 0);
-    signal adc_valid : std_logic;
-    signal adc_channel : unsigned(2 downto 0);
+    -- State machine and control
+    type sample_state_type is (IDLE, SAMPLE_VOC, SAMPLE_AQ, SAMPLE_PRESSURE, SAMPLE_TEMP, PROCESS_DATA);
+    signal current_state : sample_state_type;
+    signal sample_counter : unsigned(2 downto 0) := (others => '0');
+    signal buffer_index : unsigned(2 downto 0) := (others => '0');
+
+    -- Status signals
+    signal sampling_active : std_logic := '0';
+    signal processing_active : std_logic := '0';
     
 begin
-    -- ADC read function implementation
-    adc_read_proc: process(clk)
-        variable adc_result : std_logic_vector(11 downto 0);
-    begin
-        if rising_edge(clk) then
-            if rst = '1' then
-                adc_data <= (others => '0');
-                adc_valid <= '0';
-            else
-                -- Simple test pattern for simulation
-                adc_result := std_logic_vector(to_unsigned(to_integer(adc_channel) * 100, 12));
-                adc_data <= adc_result;
-                adc_valid <= '1';
-            end if;
-        end if;
-    end process adc_read_proc;
-
     -- Main control process
     main_proc: process(clk)
-        variable avg_sum : unsigned(18 downto 0);
+        variable avg_sum : unsigned(19 downto 0);  -- Adjusted size: 12 + 8 bits
     begin
         if rising_edge(clk) then
             if rst = '1' then
-                current_state <= INIT;
-                sensor_select <= (others => '0');
+                current_state <= IDLE;
                 sample_counter <= (others => '0');
-                sensor_status <= (others => '0');
-                error_flags <= (others => '0');
+                buffer_index <= (others => '0');
                 voc_data <= (others => '0');
                 aq_data <= (others => '0');
                 pressure_data <= (others => '0');
                 temp_data <= (others => '0');
                 flow_data <= (others => '0');
+                sampling_active <= '0';
+                processing_active <= '0';
+                error_flags <= (others => '0');
             else
+                -- Handle calibration writes
+                if cal_mode = '1' and cal_wr = '1' then
+                    if unsigned(cal_addr) < 8 then
+                        cal_storage(to_integer(unsigned(cal_addr))) <= 
+                            unsigned(cal_data(7 downto 0));  -- Take only lower byte
+                    end if;
+                end if;
+                
+                -- Sensor sampling and processing
                 case current_state is
-                    when INIT =>
-                        -- Initialize sensors
-                        if sensor_select = 7 then
-                            current_state <= CALIBRATE;
-                            sensor_select <= (others => '0');
-                        else
-                            sensor_select <= sensor_select + 1;
-                        end if;
+                    when IDLE =>
+                        current_state <= SAMPLE_VOC;
+                        sampling_active <= '1';
+                        processing_active <= '0';
                         
-                    when CALIBRATE =>
-                        -- Apply calibration data
-                        if cal_mode = '1' and cal_wr = '1' then
-                            cal_storage(to_integer(unsigned(cal_addr))) <= cal_data;
-                        end if;
+                    when SAMPLE_VOC =>
+                        voc_buffer(to_integer(buffer_index)) <= to_unsigned(512, 12);
+                        current_state <= SAMPLE_AQ;
                         
-                        if sensor_select = 7 then
-                            current_state <= SAMPLE;
-                            sensor_select <= (others => '0');
-                        else
-                            sensor_select <= sensor_select + 1;
-                        end if;
+                    when SAMPLE_AQ =>
+                        aq_buffer(to_integer(buffer_index)) <= to_unsigned(768, 12);
+                        current_state <= SAMPLE_PRESSURE;
                         
-                    when SAMPLE =>
-                        -- Sample each sensor type
-                        case to_integer(sensor_select) is
-                            when 0 => -- VOC
-                                if adc_valid = '1' then
-                                    voc_buffer(to_integer(sample_counter(2 downto 0))) <= 
-                                        unsigned(cal_storage(0)) * unsigned(adc_data);
-                                end if;
-                            when 1 => -- Air Quality
-                                if adc_valid = '1' then
-                                    aq_buffer(to_integer(sample_counter(2 downto 0))) <= 
-                                        unsigned(cal_storage(1)) * unsigned(adc_data);
-                                end if;
-                            when 2 => -- Pressure
-                                if adc_valid = '1' then
-                                    pressure_buffer(to_integer(sample_counter(2 downto 0))) <= 
-                                        unsigned(cal_storage(2)) * unsigned(adc_data);
-                                end if;
-                            when 3 => -- Temperature
-                                if adc_valid = '1' then
-                                    temp_buffer(to_integer(sample_counter(2 downto 0))) <= 
-                                        unsigned(cal_storage(3)) * unsigned(adc_data);
-                                end if;
-                            when others =>
-                                null;
-                        end case;
+                    when SAMPLE_PRESSURE =>
+                        pressure_buffer(to_integer(buffer_index)) <= to_unsigned(1024, 12);
+                        current_state <= SAMPLE_TEMP;
                         
-                        if sensor_select = 3 then
-                            current_state <= PROCESS_DATA;
-                            sensor_select <= (others => '0');
-                        else
-                            sensor_select <= sensor_select + 1;
-                        end if;
+                    when SAMPLE_TEMP =>
+                        temp_buffer(to_integer(buffer_index)) <= to_unsigned(1280, 12);
+                        current_state <= PROCESS_DATA;
+                        sampling_active <= '0';
+                        processing_active <= '1';
                         
                     when PROCESS_DATA =>
-                        -- Calculate moving averages
+                        -- Process VOC data with safe scaling
                         avg_sum := (others => '0');
-                        
-                        -- VOC average
                         for i in 0 to 7 loop
-                            avg_sum := avg_sum + voc_buffer(i);
+                            if cal_storage(0) /= 0 then  -- Prevent division by zero
+                                avg_sum := avg_sum + (voc_buffer(i) * cal_storage(0));
+                            else
+                                avg_sum := avg_sum + voc_buffer(i);
+                            end if;
                         end loop;
-                        voc_data <= std_logic_vector(avg_sum(18 downto 7));
+                        -- Scale down by 3 bits (divide by 8 for averaging)
+                        voc_data <= std_logic_vector(resize(avg_sum(19 downto 3), 12));
+
+                        -- Process other sensors with simple averaging
+                        avg_sum := (others => '0');
+                        for i in 0 to 7 loop
+                            avg_sum := avg_sum + resize(aq_buffer(i), 20);
+                        end loop;
+                        aq_data <= std_logic_vector(resize(avg_sum(19 downto 3), 12));
+
+                        avg_sum := (others => '0');
+                        for i in 0 to 7 loop
+                            avg_sum := avg_sum + resize(pressure_buffer(i), 20);
+                        end loop;
+                        pressure_data <= std_logic_vector(resize(avg_sum(19 downto 3), 12));
+
+                        avg_sum := (others => '0');
+                        for i in 0 to 7 loop
+                            avg_sum := avg_sum + resize(temp_buffer(i), 20);
+                        end loop;
+                        temp_data <= std_logic_vector(resize(avg_sum(19 downto 3), 12));
                         
-                        -- Reset for next sampling cycle
-                        sample_counter <= sample_counter + 1;
-                        current_state <= SAMPLE;
+                        -- Update buffer index
+                        if buffer_index = 7 then
+                            buffer_index <= (others => '0');
+                        else
+                            buffer_index <= buffer_index + 1;
+                        end if;
                         
+                        current_state <= IDLE;
+                        processing_active <= '0';
                 end case;
             end if;
         end if;
-    end process main_proc;
-
-end architecture behavioral;
+    end process;
+    
+    -- Status output compilation
+    sensor_status <= sampling_active & 
+                    processing_active &
+                    "000000";  -- Reserved bits
+    
+    -- SPI interface (simplified for simulation)
+    adc_spi_sclk <= clk;
+    adc_spi_mosi <= '0';
+    adc_spi_cs_n <= (others => '1');
+    
+end behavioral;

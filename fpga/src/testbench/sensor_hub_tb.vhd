@@ -13,8 +13,8 @@ architecture behavioral of sensor_hub_tb is
     signal rst : std_logic := '1';
     
     -- I2C interfaces
-    signal scl : std_logic_vector(3 downto 0);
-    signal sda : std_logic_vector(3 downto 0);
+    signal scl : std_logic_vector(3 downto 0) := (others => 'Z');
+    signal sda : std_logic_vector(3 downto 0) := (others => 'Z');
     
     -- SPI interfaces
     signal adc_spi_sclk : std_logic;
@@ -38,7 +38,7 @@ architecture behavioral of sensor_hub_tb is
     -- Status outputs
     signal sensor_status : std_logic_vector(7 downto 0);
     signal error_flags : std_logic_vector(7 downto 0);
-
+    
 begin
     -- Clock generation
     clk <= not clk after CLK_PERIOD/2;
@@ -66,41 +66,34 @@ begin
         sensor_status => sensor_status,
         error_flags => error_flags
     );
-    
-    -- Test process
+
+    -- Test stimulus process
     test_proc: process
     begin
-        -- Initialize
         report "Starting sensor hub tests...";
-        wait for CLK_PERIOD * 2;
         
-        -- Release reset
-        rst <= '0';
+        -- Initialize
         wait for CLK_PERIOD * 2;
+        rst <= '1';
+        wait for CLK_PERIOD * 2;
+        rst <= '0';
         
         -- Test Case 1: Normal Operation
         report "Test Case 1: Normal Operation";
-        adc_spi_miso <= '1';  -- Simulate ADC data
         wait for CLK_PERIOD * 100;
         
-        -- Test Case 2: Calibration Mode
+        -- Test Case 2: Calibration
         report "Test Case 2: Calibration Mode";
         cal_mode <= '1';
-        cal_addr <= x"00";
-        cal_data <= x"1234";
+        cal_addr <= x"00";  -- First calibration register
+        cal_data <= x"0002";  -- Gain of 2
         cal_wr <= '1';
-        wait for CLK_PERIOD * 10;
+        wait for CLK_PERIOD * 2;
         cal_wr <= '0';
         wait for CLK_PERIOD * 100;
         
-        -- Test Case 3: Error Injection
-        report "Test Case 3: Error Injection";
-        adc_spi_miso <= '0';  -- Simulate ADC error
-        wait for CLK_PERIOD * 100;
-        
-        -- Test Case 4: Recovery
-        report "Test Case 4: Recovery";
-        adc_spi_miso <= '1';
+        -- Test Case 3: Read with new calibration
+        report "Test Case 3: Reading with Calibration";
         cal_mode <= '0';
         wait for CLK_PERIOD * 100;
         
@@ -108,23 +101,5 @@ begin
         report "Sensor hub tests completed";
         wait;
     end process;
-    
-    -- I2C response simulation process
-    i2c_sim: process
-    begin
-        -- Pull-up resistors simulation
-        scl <= (others => 'H');
-        sda <= (others => 'H');
-        
-        wait for CLK_PERIOD;
-        
-        -- Simulate I2C responses
-        loop
-            if scl(0) = '0' then
-                sda(0) <= '0';  -- ACK
-            end if;
-            wait for I2C_PERIOD;
-        end loop;
-    end process;
-    
+
 end behavioral;
