@@ -13,15 +13,15 @@ package nebkiso_types is
         CLEANING,
         FAULT
     );
-    
+
     -- Control modes
     type control_mode_type is (
         MANUAL,
-        SEQUENCE,
+        SEQ_MODE,  -- Renamed from SEQUENCE to avoid keyword conflict
         INTERACTIVE,
         CALIBRATION
     );
-    
+
     -- Error codes
     type error_code_type is (
         NO_ERROR,

@@ -41,6 +41,19 @@ entity nebkiso_top is
         self_test_req   : in  std_logic;
         error_reset     : in  std_logic;
         
+        -- Calibration interface
+        cal_mode        : in  std_logic;
+        cal_data        : in  std_logic_vector(15 downto 0);
+        cal_addr        : in  std_logic_vector(7 downto 0);
+        cal_wr          : in  std_logic;
+        
+        -- Threshold settings
+        voc_threshold    : in std_logic_vector(11 downto 0);
+        aq_threshold     : in std_logic_vector(11 downto 0);
+        press_threshold  : in std_logic_vector(11 downto 0);
+        temp_threshold   : in std_logic_vector(11 downto 0);
+        flow_threshold   : in std_logic_vector(7 downto 0);
+        
         -- External communication interface
         uart_rx         : in  std_logic;
         uart_tx         : out std_logic;
@@ -114,11 +127,19 @@ begin
             rst_n_sync <= sync_ff(2);
             
             -- Generate system reset from multiple sources
-            system_rst <= not rst_n_sync or watchdog_timeout or 
-                         watchdog_error or not pll_locked;
-                         
+            if rst_n_sync = '0' or watchdog_timeout = '1' or 
+               watchdog_error = '1' or pll_locked = '0' then
+                system_rst <= '1';
+            else
+                system_rst <= '0';
+            end if;
+            
             -- Additional safety reset includes error conditions
-            safety_rst <= system_rst or (error_counter > x"FF");
+            if system_rst = '1' or error_counter > x"FF" then
+                safety_rst <= '1';
+            else
+                safety_rst <= '0';
+            end if;
         end if;
     end process;
     
@@ -133,6 +154,10 @@ begin
             adc_spi_mosi  => adc_spi_mosi,
             adc_spi_miso  => adc_spi_miso,
             adc_spi_cs_n  => adc_spi_cs_n,
+            cal_mode      => cal_mode,
+            cal_data      => cal_data,
+            cal_addr      => cal_addr,
+            cal_wr        => cal_wr,
             voc_data      => voc_data,
             aq_data       => aq_data,
             pressure_data => press_data,
@@ -152,11 +177,17 @@ begin
             pressure_levels  => press_data,
             temperature      => temp_data,
             flow_sensors     => flow_data,
+            voc_threshold    => voc_threshold,
+            aq_threshold     => aq_threshold,
+            press_threshold  => press_threshold,
+            temp_threshold   => temp_threshold,
+            flow_threshold   => flow_threshold,
             emergency_stop   => emergency_stop_int_a,
             ventilation_on   => ventilation_on_int_a,
             chamber_shutdown => chamber_shut_a,
             safety_status    => open,
-            error_code       => error_status(15 downto 8)
+            error_code       => error_status(15 downto 8),
+            error_location   => open
         );
         
     safety_monitor_b : entity work.safety_monitor
@@ -168,11 +199,17 @@ begin
             pressure_levels  => press_data,
             temperature      => temp_data,
             flow_sensors     => flow_data,
+            voc_threshold    => voc_threshold,
+            aq_threshold     => aq_threshold,
+            press_threshold  => press_threshold,
+            temp_threshold   => temp_threshold,
+            flow_threshold   => flow_threshold,
             emergency_stop   => emergency_stop_int_b,
             ventilation_on   => ventilation_on_int_b,
             chamber_shutdown => chamber_shut_b,
             safety_status    => open,
-            error_code       => open
+            error_code       => open,
+            error_location   => open
         );
     
     -- Watchdog process
@@ -217,6 +254,55 @@ begin
         end if;
     end process;
     
+    -- State machine process
+    state_machine : process(clk_sys)
+    begin
+        if rising_edge(clk_sys) then
+            if system_rst = '1' then
+                current_state <= INIT;
+            else
+                case current_state is
+                    when INIT =>
+                        if pll_locked = '1' and error_status = x"0000" then
+                            current_state <= IDLE;
+                        end if;
+                        
+                    when IDLE =>
+                        if cal_mode = '1' then
+                            current_state <= CALIBRATING;
+                        elsif operational_mode /= "00" and error_status = x"0000" then
+                            current_state <= RUNNING;
+                        end if;
+                        
+                    when CALIBRATING =>
+                        if cal_mode = '0' then
+                            current_state <= IDLE;
+                        end if;
+                        
+                    when RUNNING =>
+                        if error_status /= x"0000" then
+                            current_state <= FAULT;
+                        elsif emergency_stop_int_a = '1' or emergency_stop_int_b = '1' then
+                            current_state <= EMERGENCY;
+                        end if;
+                        
+                    when EMERGENCY =>
+                        if error_reset = '1' and error_status = x"0000" then
+                            current_state <= IDLE;
+                        end if;
+                        
+                    when FAULT =>
+                        if error_reset = '1' and error_status = x"0000" then
+                            current_state <= IDLE;
+                        end if;
+                        
+                    when others =>
+                        current_state <= INIT;
+                end case;
+            end if;
+        end if;
+    end process;
+    
     -- Safety output voting
     -- Only activate safety outputs if both monitors agree
     emergency_stop_a <= emergency_stop_int_a and emergency_stop_int_b;
@@ -224,9 +310,12 @@ begin
     ventilation_on_a <= ventilation_on_int_a and ventilation_on_int_b;
     ventilation_on_b <= ventilation_on_int_a and ventilation_on_int_b;
     
-    -- Status output
-    system_status <= current_state & sensor_status(3 downto 0) & 
-                    pll_locked & watchdog_timeout & safety_rst;
+    -- Status outputs
+    system_status <= std_logic_vector(to_unsigned(system_state_type'pos(current_state), 2)) & 
+                    sensor_status(3 downto 0) &
+                    pll_locked &
+                    watchdog_timeout &
+                    safety_rst;
     
     -- Error code output
     error_code <= error_status(7 downto 0);

@@ -61,7 +61,7 @@ begin
                         error_location <= x"00";  -- VOC sensor location
                     else
                         violation_counter <= (others => '0');
-                    end if
+                    end if;
                     current_state <= CHECK_AQ;
 
                 when CHECK_AQ =>
@@ -70,7 +70,7 @@ begin
                         violation_counter <= violation_counter + 1;
                         error_code <= x"02";
                         error_location <= x"01";  -- AQ sensor location
-                    end if
+                    end if;
                     current_state <= CHECK_PRESSURE;
 
                 when CHECK_PRESSURE =>
@@ -79,7 +79,7 @@ begin
                         error_code <= x"03";
                         error_location <= x"02";  -- Pressure sensor location
                         emergency_stop <= '1';
-                    end if
+                    end if;
                     current_state <= CHECK_TEMP;
 
                 when CHECK_TEMP =>
@@ -88,14 +88,17 @@ begin
                         error_code <= x"04";
                         error_location <= x"03";  -- Temperature sensor location
                         emergency_stop <= '1';
-                    end if
+                    end if;
                     current_state <= CHECK_FLOW;
 
                 when CHECK_FLOW =>
                     if unsigned(flow_sensors) < unsigned(flow_threshold) then
                         error_code <= x"05";
                         error_location <= x"04";  -- Flow sensor location
-                    end if
+                    end if;
+                    current_state <= CHECK_VOC;
+
+                when others =>
                     current_state <= CHECK_VOC;
             end case;
 
@@ -113,4 +116,3 @@ begin
         end if;
     end process;
 end behavioral;
-
