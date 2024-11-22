@@ -324,3 +324,24 @@ export PATH=$PATH:/path/to/questa/bin
 export LM_LICENSE_FILE=/path/to/license.dat
 export MGLS_LICENSE_FILE=/path/to/license.dat
 ```
+
+# Install IceStorm tools
+
+```
+git clone https://github.com/YosysHQ/icestorm.git
+cd icestorm
+make -j$(nproc)
+sudo make install
+cd ..
+```
+
+# Install nextpnr
+
+```
+git clone https://github.com/YosysHQ/nextpnr
+cd nextpnr
+cmake -DARCH=ice40 -DCMAKE_INSTALL_PREFIX=/usr/local .
+make -j$(nproc)
+sudo make install
+cd ..
+```
