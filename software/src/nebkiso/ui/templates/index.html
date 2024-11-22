@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NΞBKISØ Control Interface</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gauge.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>NΞBKISØ Control Interface</h1>
+            <div class="system-info">
+                <span>Mode: <span id="systemMode">IDLE</span></span>
+                <button id="emergencyStop" class="emergency-button">EMERGENCY STOP</button>
+            </div>
+        </header>
+
+        <div class="dashboard-grid">
+            <div class="status-panel">
+                <h2>System Status</h2>
+                <canvas id="statusGauge"></canvas>
+                <div id="statusGaugeValue"></div>
+                <div class="status-indicators">
+                    <div class="indicator">
+                        <span>Safety Status</span>
+                        <div id="safetyStatus" class="status-indicator status-ok"></div>
+                    </div>
+                    <div class="indicator">
+                        <span>Ventilation</span>
+                        <div id="ventilation" class="status-indicator status-ok"></div>
+                    </div>
+                    <div class="indicator">
+                        <span>Pressure</span>
+                        <div id="pressure" class="status-indicator status-ok"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-panel">
+                <h2>VOC Levels</h2>
+                <canvas id="vocChart"></canvas>
+            </div>
+
+            <div class="chart-panel">
+                <h2>Air Quality</h2>
+                <canvas id="aqChart"></canvas>
+            </div>
+        </div>
+
+        <div id="alertsContainer" class="alerts-container"></div>
+    </div>
+
+    <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
