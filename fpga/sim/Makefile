@@ -1,7 +1,14 @@
+
 # GHDL configuration
 GHDL=ghdl
 GHDLFLAGS=--std=08
 WORKDIR=work
+VCD_FILE=wave.vcd
+
+# Simulation configuration
+STOP_TIME=2ms
+SAFETY_VCD=safety_monitor.vcd
+SENSOR_VCD=sensor_hub.vcd
 
 # Source directories
 CORE_DIR=../src/hdl/core
@@ -46,6 +53,7 @@ $(OLFACTORY_DIR)/environment_controller.vhd \
 $(OLFACTORY_DIR)/spatial_controller.vhd \
 $(OLFACTORY_DIR)/sequence_controller.vhd \
 $(OLFACTORY_DIR)/mixing_chamber_controller.vhd \
+$(OLFACTORY_DIR)/cartridge_controller.vhd \
 $(OLFACTORY_DIR)/olfactory_sequencer_top.vhd
 
 # All source files
@@ -57,7 +65,10 @@ $(TB_DIR)/nebkiso_tb_pkg.vhd \
 $(TB_DIR)/safety_monitor_tb.vhd \
 $(TB_DIR)/sensor_hub_tb.vhd
 
-.PHONY: all clean work analyze test
+# Define available testbenches
+TESTBENCHES = safety_monitor_tb sensor_hub_tb
+
+.PHONY: all clean work analyze test sim_safety sim_sensor sim_all view_wave
 
 all: work analyze
 
@@ -105,8 +116,53 @@ test: analyze
 		$(GHDL) -a $(GHDLFLAGS) --workdir=$(WORKDIR) $$file; \
 	done
 
+sim_safety: test
+	@echo "Elaborating and running safety monitor simulation..."
+	$(GHDL) -e $(GHDLFLAGS) --workdir=$(WORKDIR) safety_monitor_tb
+	$(GHDL) -r $(GHDLFLAGS) --workdir=$(WORKDIR) safety_monitor_tb --vcd=$(SAFETY_VCD) --stop-time=$(STOP_TIME)
+	@echo "Simulation completed. Run 'make view_safety' to view waveforms."
+
+sim_sensor: test
+	@echo "Elaborating and running sensor hub simulation..."
+	$(GHDL) -e $(GHDLFLAGS) --workdir=$(WORKDIR) sensor_hub_tb
+	$(GHDL) -r $(GHDLFLAGS) --workdir=$(WORKDIR) sensor_hub_tb --vcd=$(SENSOR_VCD) --stop-time=$(STOP_TIME)
+	@echo "Simulation completed. Run 'make view_sensor' to view waveforms."
+
+
+# Separate targets for viewing different waveforms
+view_safety:
+	@if [ -f "$(SAFETY_VCD)" ]; then \
+		gtkwave $(SAFETY_VCD); \
+	else \
+		echo "No safety monitor waveform found. Run 'make sim_safety' first."; \
+	fi
+
+view_sensor:
+	@if [ -f "$(SENSOR_VCD)" ]; then \
+		gtkwave $(SENSOR_VCD) wave_sensor_hub_tb.do; \
+	else \
+		echo "No sensor hub waveform found. Run 'make sim_sensor' first."; \
+	fi
+
+# Run all simulations
+sim_all: $(TESTBENCHES)
+	@for tb in $(TESTBENCHES); do \
+		echo "Running $$tb simulation..."; \
+		$(GHDL) -e $(GHDLFLAGS) --workdir=$(WORKDIR) $$tb; \
+		$(GHDL) -r $(GHDLFLAGS) --workdir=$(WORKDIR) $$tb --vcd=$$tb.vcd; \
+	done
+
+# View waveform (requires GTKWave)
+view_wave:
+	@if [ -f "$(VCD_FILE)" ]; then \
+		gtkwave $(VCD_FILE); \
+	else \
+		echo "No waveform file found. Run simulation first."; \
+	fi
+
+
+# Clean target updated to remove specific VCD files
 clean:
 	@rm -rf $(WORKDIR)
-	@rm -f *.o
-	@rm -f *.cf
-	@rm -f *.vcd
+	@rm -f *.o *.cf
+	@rm -f $(SAFETY_VCD) $(SENSOR_VCD)

@@ -16,15 +16,28 @@ entity olfactory_sequencer_top is
         sequence_pause      : in  std_logic;
         operation_mode      : in  std_logic_vector(1 downto 0);
         
+        -- Sequence interface
+        sequence_data       : in  sequence_step_type;
+        
+        -- Zone configuration
+        num_zones          : in  std_logic_vector(3 downto 0);
+        zone_enables       : in  std_logic_vector(15 downto 0);
+        distribution_mode  : in  std_logic_vector(1 downto 0);
+        target_zone        : in  std_logic_vector(3 downto 0);
+        intensity_map      : in  std_logic_vector(127 downto 0);
+        main_flow_in       : in  std_logic_vector(7 downto 0);
+        
         -- Cartridge interface
         cartridge_valves    : out std_logic_vector(NUM_CARTRIDGES-1 downto 0);
         cartridge_pumps     : out std_logic_vector(NUM_CARTRIDGES-1 downto 0);
         cartridge_sensors   : in  std_logic_vector(NUM_CARTRIDGES*8-1 downto 0);
         
-        -- Environment sensors
+        -- Environment sensors/controls
         temperature         : in  std_logic_vector(TEMP_PRECISION-1 downto 0);
         humidity           : in  std_logic_vector(7 downto 0);
+        humidity_target    : in  std_logic_vector(7 downto 0);
         pressure           : in  std_logic_vector(PRESSURE_PRECISION-1 downto 0);
+        filter_status      : in  std_logic_vector(1 downto 0);
         
         -- Environment control
         heater_control      : out std_logic_vector(7 downto 0);
@@ -50,6 +63,7 @@ entity olfactory_sequencer_top is
 end olfactory_sequencer_top;
 
 architecture behavioral of olfactory_sequencer_top is
+    -- Rest of the architecture remains the same as before
     -- Internal signals for interconnection
     signal cartridge_enables : std_logic_vector(NUM_CARTRIDGES-1 downto 0);
     signal flow_rates : cartridge_array;
@@ -61,72 +75,71 @@ architecture behavioral of olfactory_sequencer_top is
     signal distribution_active : std_logic;
     
 begin
-    -- Sequence controller instance
+    -- Component instantiations with all required ports connected
     sequence_ctrl : entity work.sequence_controller
         port map (
-            clk => clk,
-            rst => rst,
-            sequence_start => sequence_start,
-            sequence_stop => sequence_stop,
-            sequence_pause => sequence_pause,
-            cartridge_enables => cartridge_enables,
-            flow_rates => flow_rates,
-            temp_target => temp_target,
-            pressure_target => pressure_target,
-            sequence_active => sequence_active,
-            sequence_error => sequence_error
+            clk              => clk,
+            rst              => rst,
+            sequence_start   => sequence_start,
+            sequence_stop    => sequence_stop,
+            sequence_pause   => sequence_pause,
+            sequence_data    => sequence_data,
+            cartridge_enables=> cartridge_enables,
+            flow_rates       => flow_rates,
+            temp_target      => temp_target,
+            pressure_target  => pressure_target,
+            sequence_active  => sequence_active,
+            sequence_done    => open,
+            sequence_error   => sequence_error,
+            current_step     => open
         );
     
-    -- Cartridge controller instance
     cartridge_ctrl : entity work.cartridge_controller
         port map (
-            clk => clk,
-            rst => rst,
-            cartridge_sel => cartridge_enables,
-            flow_rate => flow_rates(0),  -- First flow rate
-            valve_controls => cartridge_valves,
-            pump_controls => cartridge_pumps,
-            flow_sensors => cartridge_sensors(7 downto 0)  -- First sensor
+            clk             => clk,
+            rst             => rst,
+            cartridge_sel   => "00000",  -- Default to first cartridge
+            flow_rate       => flow_rates(0),
+            enable          => cartridge_enables(0),
+            valve_controls  => cartridge_valves,
+            pump_controls   => cartridge_pumps,
+            flow_sensors    => cartridge_sensors(NUM_CARTRIDGES-1 downto 0),
+            cartridge_status=> open
         );
     
-    -- Environment controller instance
     env_ctrl : entity work.environment_controller
         port map (
-            clk => clk,
-            rst => rst,
-            temp_target => temp_target,
-            pressure_target => pressure_target,
-            temperature => temperature,
-            humidity => humidity,
-            pressure => pressure,
-            heater_control => heater_control,
-            cooler_control => cooler_control,
-            humidifier_control => humidifier_control,
-            env_error => env_error
+            clk               => clk,
+            rst               => rst,
+            temp_target       => temp_target,
+            humidity_target   => humidity_target,
+            pressure_target   => pressure_target,
+            temperature       => temperature,
+            humidity         => humidity,
+            pressure         => pressure,
+            heater_control    => heater_control,
+            cooler_control    => cooler_control,
+            humidifier_control=> humidifier_control,
+            filter_status    => filter_status,
+            env_error        => env_error
         );
     
-    -- Mixing chamber controller instance
-    mixing_ctrl : entity work.mixing_chamber_controller
-        port map (
-            clk => clk,
-            rst => rst,
-            mixing_mode => mixing_mode_type'val(to_integer(unsigned(operation_mode))),
-            mixer_speed => mixer_speed,
-            temp_target => temp_target,
-            pressure_target => pressure_target
-        );
-    
-    -- Spatial distribution controller instance
     spatial_ctrl : entity work.spatial_controller
         port map (
-            clk => clk,
-            rst => rst,
-            zone_valves => zone_valves,
-            zone_flows => zone_flows,
-            zone_sensors => zone_sensors,
+            clk              => clk,
+            rst              => rst,
+            num_zones        => num_zones,
+            zone_enables     => zone_enables,
+            distribution_mode=> distribution_mode,
+            target_zone      => target_zone,
+            intensity_map    => intensity_map,
+            main_flow_in     => main_flow_in,
+            zone_valves      => zone_valves,
+            zone_flows       => zone_flows,
+            zone_sensors     => zone_sensors,
             distribution_active => distribution_active
         );
-    
+
     -- Status monitoring process
     process(clk, rst)
     begin

@@ -1,6 +1,9 @@
 # NΞBKISØ OLFACTORY SEQUENCER: Programmable Hyperrealist Scent Experience System
 
 ## Core Technology
+
+![gtkwave](docs/software/2024-11-21_23-38.png)
+
 ### Molecular Dispensing System
 1. **Precision Control**
    - 0.01ml dispensing accuracy
