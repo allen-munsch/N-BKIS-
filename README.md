@@ -2,6 +2,12 @@
 
 ## Core Technology
 
+![Concept Art](docs/concept-art-13.jpg)
+
+---
+
+### GTKWave images
+
 ![gtkwave safety](docs/software/2024-11-21_23-38.png)
 ![gtkwave sensors](docs/software/2024-11-22_00-04.png)
 
