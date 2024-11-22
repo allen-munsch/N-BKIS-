@@ -1,5 +1,15 @@
 # NΞBKISØ OLFACTORY SEQUENCER: Programmable Hyperrealist Scent Experience System
 
+```
+cat fpga/README.md
+cd fpga/sim
+make
+make test
+make sim_sensor
+make view_sensor
+```
+
+
 ## Core Technology
 
 ![Concept Art](docs/concept-art-13.jpg)
