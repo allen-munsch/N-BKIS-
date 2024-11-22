@@ -9,6 +9,41 @@ make sim_sensor
 make view_sensor
 ```
 
+```
+01:54:48 jm@pop-os sim ±|main ✗|→ make test
+Analyzing packages first...
+Compiling ../src/hdl/core/nebkiso_pkg.vhd
+Compiling ../src/hdl/core/nebkiso_types.vhd
+Compiling ../src/hdl/olfactory/nebkiso_olfactory_pkg.vhd
+Analyzing core files...
+Compiling ../src/hdl/core/clock_manager.vhd
+Compiling ../src/hdl/sensors/sensor_hub.vhd
+Compiling ../src/hdl/safety/safety_monitor.vhd
+Compiling ../src/hdl/core/nebkiso_top.vhd
+Analyzing interface files...
+Compiling ../src/hdl/interfaces/spi_peripheral.vhd
+Compiling ../src/hdl/interfaces/i2c_controller.vhd
+Compiling ../src/hdl/interfaces/uart_controller.vhd
+Analyzing safety files...
+Compiling ../src/hdl/safety/safety_monitor.vhd
+Compiling ../src/hdl/safety/ventilation_controller.vhd
+Analyzing sensor files...
+Compiling ../src/hdl/sensors/sensor_hub.vhd
+Compiling ../src/hdl/sensors/flow_sensor_interface.vhd
+Analyzing olfactory files...
+Compiling ../src/hdl/olfactory/environment_controller.vhd
+Compiling ../src/hdl/olfactory/spatial_controller.vhd
+Compiling ../src/hdl/olfactory/sequence_controller.vhd
+Compiling ../src/hdl/olfactory/mixing_chamber_controller.vhd
+Compiling ../src/hdl/olfactory/cartridge_controller.vhd
+Compiling ../src/hdl/olfactory/olfactory_sequencer_top.vhd
+Analyzing testbench files...
+Compiling ../src/testbench/nebkiso_tb_pkg.vhd
+Compiling ../src/testbench/safety_monitor_tb.vhd
+Compiling ../src/testbench/sensor_hub_tb.vhd
+```
+
+
 
 ## Core Technology
 
