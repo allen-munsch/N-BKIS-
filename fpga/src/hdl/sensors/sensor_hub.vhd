@@ -9,7 +9,7 @@ entity sensor_hub is
         clk           : in  std_logic;
         rst           : in  std_logic;
         
-        -- I2C interfaces for sensors
+        -- -- I2C interfaces for sensors
         scl           : inout std_logic_vector(3 downto 0);
         sda           : inout std_logic_vector(3 downto 0);
         
@@ -54,7 +54,9 @@ architecture behavioral of sensor_hub is
     signal aq_buffer       : sensor_buffer_type := (others => (others => '0'));
     signal pressure_buffer : sensor_buffer_type := (others => (others => '0'));
     signal temp_buffer     : sensor_buffer_type := (others => (others => '0'));
-    
+    signal voc_data_internal : std_logic_vector(11 downto 0);
+    signal aq_data_internal  : std_logic_vector(11 downto 0);
+        
     -- Calibration data storage
     type cal_data_array is array (0 to 7) of unsigned(7 downto 0);
     signal cal_storage : cal_data_array := (others => to_unsigned(1, 8)); -- Default gain of 1
@@ -99,6 +101,9 @@ architecture behavioral of sensor_hub is
     signal cs_control      : std_logic_vector(7 downto 0);
 
 begin
+    -- Assign default values to unused ports
+    scl <= (others => 'Z');  -- Reserved for future I2C implementation
+    sda <= (others => 'Z');  -- Reserved for future I2C implementation
     -- Main control process
     main_proc: process(clk)
         variable avg_sum : unsigned(19 downto 0);  -- Sized for 12-bit values * 8 samples
@@ -164,14 +169,14 @@ begin
                         for i in 0 to 7 loop
                             avg_sum := avg_sum + (voc_buffer(i) * cal_storage(0));
                         end loop;
-                        voc_data <= std_logic_vector(resize(avg_sum(19 downto 3), 12));
+                        voc_data_internal <= std_logic_vector(resize(avg_sum(19 downto 3), 12));
 
                         -- Process AQ data
                         avg_sum := (others => '0');
                         for i in 0 to 7 loop
                             avg_sum := avg_sum + (aq_buffer(i) * cal_storage(1));
                         end loop;
-                        aq_data <= std_logic_vector(resize(avg_sum(19 downto 3), 12));
+                        aq_data_internal <= std_logic_vector(resize(avg_sum(19 downto 3), 12));
 
                         -- Process pressure data
                         avg_sum := (others => '0');
@@ -267,7 +272,7 @@ begin
                 sample_timeout <= (others => '0');
             else
                 -- Check for out-of-range values
-                if unsigned(voc_data) > THRESHOLD_VOC then
+                if unsigned(voc_data_internal) > THRESHOLD_VOC then
                     sensor_status(0) <= '1';
                     error_flags(0) <= '1';
                 else
@@ -275,7 +280,7 @@ begin
                     error_flags(0) <= '0';
                 end if;
                 
-                if unsigned(aq_data) > THRESHOLD_AQ then
+                if unsigned(aq_data_internal) > THRESHOLD_AQ then
                     sensor_status(1) <= '1';
                     error_flags(1) <= '1';
                 else

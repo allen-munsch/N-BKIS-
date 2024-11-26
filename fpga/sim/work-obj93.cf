@@ -1,0 +1,53 @@
+v 4
+file . "../src/hdl/core/nebkiso_top.vhd" "dce7d2cf01b88ee40242083afd438ef4af14476e" "20241126024832.459":
+  entity nebkiso_top at 1( 0) + 0 on 261;
+  architecture behavioral of nebkiso_top at 68( 2393) + 0 on 262;
+file . "../src/hdl/core/clock_manager.vhd" "910eae4b6b9915ee7f1a6131019e661cdbe62dec" "20241126024832.455":
+  entity clock_manager at 1( 0) + 0 on 257;
+  architecture behavioral of clock_manager at 18( 517) + 0 on 258;
+file . "../src/hdl/olfactory/olfactory_sequencer_top.vhd" "2df01e156b11003dd56f9f77dced85e043cf3a6c" "20241126024832.444":
+  entity olfactory_sequencer_top at 1( 0) + 0 on 251;
+  architecture behavioral of olfactory_sequencer_top at 65( 2703) + 0 on 252;
+file . "../src/hdl/olfactory/cartridge_controller.vhd" "9fc050b62bb1559994728038db1b5f6002aae2e4" "20241126024832.443":
+  entity cartridge_controller at 1( 0) + 0 on 249;
+  architecture behavioral of cartridge_controller at 20( 739) + 0 on 250;
+file . "../src/hdl/olfactory/mixing_chamber_controller.vhd" "6f78253112f61c05b892e7b35265bbff27a41c81" "20241126024832.442":
+  entity mixing_chamber_controller at 1( 0) + 0 on 247;
+  architecture behavioral of mixing_chamber_controller at 19( 655) + 0 on 248;
+file . "../src/hdl/olfactory/sequence_controller.vhd" "673a1d8ddc2734540fad0b7c43c4ab9dfe3e45d7" "20241126024832.441":
+  entity sequence_controller at 1( 0) + 0 on 245;
+  architecture behavioral of sequence_controller at 36( 1223) + 0 on 246;
+file . "../src/hdl/olfactory/spatial_controller.vhd" "e07fbd8ee258bce6adfe3ce8d2263fdaedbff32d" "20241126024832.441":
+  entity spatial_controller at 1( 0) + 0 on 243;
+  architecture behavioral of spatial_controller at 37( 1246) + 0 on 244;
+file . "../src/hdl/olfactory/environment_controller.vhd" "25c9a1409ab0bdc126483cf980ab131a6adbba63" "20241126024832.440":
+  entity environment_controller at 1( 0) + 0 on 241;
+  architecture behavioral of environment_controller at 42( 1555) + 0 on 242;
+file . "../src/hdl/interfaces/uart_controller.vhd" "2a9680376e05218b598213c2995c01cdf31f564a" "20241126024832.426":
+  entity uart_controller at 1( 0) + 0 on 235;
+  architecture behavioral of uart_controller at 25( 639) + 0 on 236;
+file . "../src/hdl/interfaces/i2c_controller.vhd" "405647faeacea0ccd148c96f42d1515c2c3f393e" "20241126024832.425":
+  entity i2c_controller at 1( 0) + 0 on 233;
+  architecture behavioral of i2c_controller at 28( 891) + 0 on 234;
+file . "../src/hdl/interfaces/spi_peripheral.vhd" "c1568ce3c594f40aff67f4f63570ffb782614d84" "20241126024832.424":
+  entity spi_peripheral at 1( 0) + 0 on 231;
+  architecture behavioral of spi_peripheral at 26( 741) + 0 on 232;
+file . "../src/hdl/core/nebkiso_pkg.vhd" "cfbd13e68a4c8614a66d72fa4b20fdee273fae29" "20241126024832.419":
+  package nebkiso_pkg at 1( 0) + 0 on 227;
+file . "../src/hdl/core/nebkiso_types.vhd" "ec335d7d8d0defc5506acf9a0f699bddf7de775f" "20241126024832.419":
+  package nebkiso_types at 1( 0) + 0 on 228;
+file . "../src/hdl/olfactory/nebkiso_olfactory_pkg.vhd" "639f3a9dce68da550ad50bc300f26d2331ad2062" "20241126024832.420":
+  package nebkiso_olfactory_pkg at 1( 0) + 0 on 229 body;
+  package body nebkiso_olfactory_pkg at 80( 3355) + 0 on 230;
+file . "../src/hdl/sensors/flow_sensor_interface.vhd" "b63944e215e5d4d40e98deb1dbd5a92ddcee3652" "20241126024832.430":
+  entity flow_sensor_interface at 1( 0) + 0 on 237;
+  architecture behavioral of flow_sensor_interface at 26( 652) + 0 on 238;
+file . "../src/hdl/sensors/sensor_hub.vhd" "8a5a3b3e72bdeb56f8f0ff75b51a322410003439" "20241126024832.432":
+  entity sensor_hub at 1( 0) + 0 on 239;
+  architecture behavioral of sensor_hub at 41( 1374) + 0 on 240;
+file . "../src/hdl/safety/safety_monitor.vhd" "3a56a7ca99a3b4d20203fc177dc993bf2c5c6a10" "20241126024832.457":
+  entity safety_monitor at 1( 0) + 0 on 259;
+  architecture behavioral of safety_monitor at 39( 1398) + 0 on 260;
+file . "../src/hdl/safety/ventilation_controller.vhd" "8f8c9e1510fd290932ca10c4de24fb38d1415823" "20241126024832.452":
+  entity ventilation_controller at 1( 0) + 0 on 255;
+  architecture behavioral of ventilation_controller at 29( 794) + 0 on 256;

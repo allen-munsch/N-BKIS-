@@ -41,21 +41,28 @@ architecture behavioral of safety_monitor is
     signal current_state : monitor_state_type;
     signal violation_counter : unsigned(3 downto 0);
     signal persistent_violation : std_logic;
+    
+    -- Internal signals for outputs
+    signal emergency_stop_int : std_logic;
+    signal ventilation_on_int : std_logic;
 begin
     process(clk, rst)
     begin
         if rst = '1' then
             current_state <= CHECK_VOC;
-            emergency_stop <= '0';
-            ventilation_on <= '0';
+            emergency_stop_int <= '0';
+            ventilation_on_int <= '0';
             chamber_shutdown <= (others => '0');
             violation_counter <= (others => '0');
             persistent_violation <= '0';
+            error_code <= (others => '0');
+            error_location <= (others => '0');
+            
         elsif rising_edge(clk) then
             case current_state is
                 when CHECK_VOC =>
                     if unsigned(voc_levels) > unsigned(voc_threshold) then
-                        ventilation_on <= '1';
+                        ventilation_on_int <= '1';
                         violation_counter <= violation_counter + 1;
                         error_code <= x"01";
                         error_location <= x"00";  -- VOC sensor location
@@ -66,7 +73,7 @@ begin
 
                 when CHECK_AQ =>
                     if unsigned(air_quality) > unsigned(aq_threshold) then
-                        ventilation_on <= '1';
+                        ventilation_on_int <= '1';
                         violation_counter <= violation_counter + 1;
                         error_code <= x"02";
                         error_location <= x"01";  -- AQ sensor location
@@ -78,7 +85,7 @@ begin
                         chamber_shutdown <= (others => '1');
                         error_code <= x"03";
                         error_location <= x"02";  -- Pressure sensor location
-                        emergency_stop <= '1';
+                        emergency_stop_int <= '1';
                     end if;
                     current_state <= CHECK_TEMP;
 
@@ -87,7 +94,7 @@ begin
                         chamber_shutdown <= (others => '1');
                         error_code <= x"04";
                         error_location <= x"03";  -- Temperature sensor location
-                        emergency_stop <= '1';
+                        emergency_stop_int <= '1';
                     end if;
                     current_state <= CHECK_FLOW;
 
@@ -105,14 +112,19 @@ begin
             -- Persistent violation check
             if violation_counter > x"8" then  -- More than 8 consecutive violations
                 persistent_violation <= '1';
-                emergency_stop <= '1';
+                emergency_stop_int <= '1';
             end if;
 
             -- Update safety status
             safety_status <= persistent_violation & 
-                           emergency_stop & 
-                           ventilation_on & 
+                           emergency_stop_int & 
+                           ventilation_on_int & 
                            "00000";  -- Reserved bits
         end if;
     end process;
+
+    -- Drive output ports
+    emergency_stop <= emergency_stop_int;
+    ventilation_on <= ventilation_on_int;
+
 end behavioral;

@@ -1,0 +1,3729 @@
+library IEEE;
+use IEEE.std_logic_1164.all;
+use IEEE.numeric_std.all;
+use work.nebkiso_pkg.all;
+use work.nebkiso_types.all;
+entity nebkiso_top is
+  port (
+    clk_in: in std_logic;
+    ext_rst_n: in std_logic;
+    watchdog_kick: out std_logic;
+    watchdog_error: in std_logic;
+    adc_spi_sclk: out std_logic;
+    adc_spi_mosi: out std_logic;
+    adc_spi_miso: in std_logic;
+    adc_spi_cs_n: out std_logic_vector (7 downto 0);
+    scl: inout std_logic_vector (3 downto 0);
+    sda: inout std_logic_vector (3 downto 0);
+    flow_pulse: in std_logic_vector (7 downto 0);
+    emergency_stop_a: out std_logic;
+    emergency_stop_b: out std_logic;
+    ventilation_on_a: out std_logic;
+    ventilation_on_b: out std_logic;
+    chamber_shut_a: out std_logic_vector (NUM_CHAMBERS - 1 downto 0);
+    chamber_shut_b: out std_logic_vector (NUM_CHAMBERS - 1 downto 0);
+    operational_mode: in std_logic_vector (1 downto 0);
+    self_test_req: in std_logic;
+    error_reset: in std_logic;
+    cal_mode: in std_logic;
+    cal_data: in std_logic_vector (15 downto 0);
+    cal_addr: in std_logic_vector (7 downto 0);
+    cal_wr: in std_logic;
+    voc_threshold: in std_logic_vector (11 downto 0);
+    aq_threshold: in std_logic_vector (11 downto 0);
+    press_threshold: in std_logic_vector (11 downto 0);
+    temp_threshold: in std_logic_vector (11 downto 0);
+    flow_threshold: in std_logic_vector (7 downto 0);
+    uart_rx: in std_logic;
+    uart_tx: out std_logic;
+    system_status: out std_logic_vector (7 downto 0);
+    error_code: out std_logic_vector (7 downto 0);
+    heartbeat: out std_logic
+  );
+end nebkiso_top;
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity uart_controller_868 is
+  port (
+    clk : in std_logic;
+    rst : in std_logic;
+    rx : in std_logic;
+    tx_data : in std_logic_vector (7 downto 0);
+    tx_start : in std_logic;
+    tx : out std_logic;
+    tx_busy : out std_logic;
+    rx_data : out std_logic_vector (7 downto 0);
+    rx_done : out std_logic);
+end entity uart_controller_868;
+
+architecture rtl of uart_controller_868 is
+  signal tx_state : std_logic_vector (1 downto 0);
+  signal rx_state : std_logic_vector (1 downto 0);
+  signal rx_clk_count : std_logic_vector (9 downto 0);
+  signal rx_bit_index : std_logic_vector (2 downto 0);
+  signal rx_buffer : std_logic_vector (7 downto 0);
+  signal rx_sync : std_logic_vector (1 downto 0);
+  signal tx_clk_count : std_logic_vector (9 downto 0);
+  signal tx_bit_index : std_logic_vector (2 downto 0);
+  signal tx_buffer : std_logic_vector (7 downto 0);
+  signal n1190 : std_logic;
+  signal n1193 : std_logic_vector (1 downto 0);
+  signal n1194 : std_logic_vector (7 downto 0);
+  signal n1196 : std_logic;
+  signal n1197 : std_logic_vector (31 downto 0);
+  signal n1199 : std_logic;
+  signal n1200 : std_logic_vector (31 downto 0);
+  signal n1202 : std_logic_vector (31 downto 0);
+  signal n1203 : std_logic_vector (9 downto 0);
+  signal n1205 : std_logic_vector (1 downto 0);
+  signal n1207 : std_logic_vector (9 downto 0);
+  signal n1209 : std_logic;
+  signal n1212 : std_logic_vector (31 downto 0);
+  signal n1214 : std_logic;
+  signal n1215 : std_logic_vector (31 downto 0);
+  signal n1217 : std_logic;
+  signal n1218 : std_logic_vector (31 downto 0);
+  signal n1220 : std_logic_vector (31 downto 0);
+  signal n1221 : std_logic_vector (2 downto 0);
+  signal n1223 : std_logic_vector (1 downto 0);
+  signal n1225 : std_logic_vector (2 downto 0);
+  signal n1226 : std_logic_vector (31 downto 0);
+  signal n1228 : std_logic_vector (31 downto 0);
+  signal n1229 : std_logic_vector (9 downto 0);
+  signal n1230 : std_logic;
+  signal n1232 : std_logic_vector (9 downto 0);
+  signal n1233 : std_logic_vector (2 downto 0);
+  signal n1235 : std_logic;
+  signal n1236 : std_logic_vector (31 downto 0);
+  signal n1238 : std_logic;
+  signal n1239 : std_logic_vector (31 downto 0);
+  signal n1241 : std_logic_vector (31 downto 0);
+  signal n1242 : std_logic_vector (9 downto 0);
+  signal n1244 : std_logic_vector (1 downto 0);
+  signal n1245 : std_logic_vector (9 downto 0);
+  signal n1247 : std_logic;
+  signal n1248 : std_logic_vector (3 downto 0);
+  signal n1253 : std_logic;
+  signal n1255 : std_logic;
+  signal n1257 : std_logic_vector (1 downto 0);
+  signal n1260 : std_logic_vector (9 downto 0);
+  signal n1263 : std_logic_vector (2 downto 0);
+  signal n1265 : std_logic_vector (7 downto 0);
+  signal n1287 : std_logic;
+  signal n1288 : std_logic_vector (1 downto 0);
+  signal n1289 : std_logic;
+  signal n1290 : std_logic;
+  signal n1292 : std_logic_vector (1 downto 0);
+  signal n1294 : std_logic;
+  signal n1295 : std_logic_vector (31 downto 0);
+  signal n1297 : std_logic;
+  signal n1298 : std_logic;
+  signal n1299 : std_logic;
+  signal n1302 : std_logic_vector (1 downto 0);
+  signal n1304 : std_logic_vector (9 downto 0);
+  signal n1305 : std_logic_vector (31 downto 0);
+  signal n1307 : std_logic_vector (31 downto 0);
+  signal n1308 : std_logic_vector (9 downto 0);
+  signal n1309 : std_logic_vector (1 downto 0);
+  signal n1310 : std_logic_vector (9 downto 0);
+  signal n1312 : std_logic;
+  signal n1313 : std_logic_vector (31 downto 0);
+  signal n1315 : std_logic;
+  signal n1317 : std_logic;
+  signal n1319 : std_logic_vector (31 downto 0);
+  signal n1321 : std_logic;
+  signal n1322 : std_logic_vector (31 downto 0);
+  signal n1324 : std_logic_vector (31 downto 0);
+  signal n1325 : std_logic_vector (2 downto 0);
+  signal n1327 : std_logic_vector (1 downto 0);
+  signal n1329 : std_logic_vector (2 downto 0);
+  signal n1330 : std_logic_vector (31 downto 0);
+  signal n1332 : std_logic_vector (31 downto 0);
+  signal n1333 : std_logic_vector (9 downto 0);
+  signal n1334 : std_logic;
+  signal n1336 : std_logic_vector (9 downto 0);
+  signal n1337 : std_logic_vector (2 downto 0);
+  signal n1338 : std_logic_vector (7 downto 0);
+  signal n1340 : std_logic;
+  signal n1341 : std_logic_vector (31 downto 0);
+  signal n1343 : std_logic;
+  signal n1344 : std_logic;
+  signal n1345 : std_logic_vector (7 downto 0);
+  signal n1348 : std_logic;
+  signal n1349 : std_logic_vector (31 downto 0);
+  signal n1351 : std_logic_vector (31 downto 0);
+  signal n1352 : std_logic_vector (9 downto 0);
+  signal n1353 : std_logic;
+  signal n1355 : std_logic;
+  signal n1357 : std_logic_vector (1 downto 0);
+  signal n1359 : std_logic_vector (9 downto 0);
+  signal n1361 : std_logic;
+  signal n1362 : std_logic_vector (3 downto 0);
+  signal n1364 : std_logic_vector (7 downto 0);
+  signal n1367 : std_logic;
+  signal n1370 : std_logic_vector (1 downto 0);
+  signal n1373 : std_logic_vector (9 downto 0);
+  signal n1376 : std_logic_vector (2 downto 0);
+  signal n1378 : std_logic_vector (7 downto 0);
+  signal n1401 : std_logic_vector (1 downto 0);
+  signal n1402 : std_logic_vector (1 downto 0);
+  signal n1403 : std_logic_vector (9 downto 0);
+  signal n1404 : std_logic_vector (2 downto 0);
+  signal n1405 : std_logic_vector (7 downto 0);
+  signal n1406 : std_logic_vector (1 downto 0);
+  signal n1407 : std_logic_vector (9 downto 0);
+  signal n1408 : std_logic_vector (2 downto 0);
+  signal n1409 : std_logic_vector (7 downto 0);
+  signal n1410 : std_logic;
+  signal n1411 : std_logic;
+  signal n1412 : std_logic_vector (7 downto 0);
+  signal n1413 : std_logic;
+  signal n1414 : std_logic;
+  signal n1415 : std_logic;
+  signal n1416 : std_logic;
+  signal n1417 : std_logic;
+  signal n1418 : std_logic;
+  signal n1419 : std_logic;
+  signal n1420 : std_logic;
+  signal n1421 : std_logic;
+  signal n1422 : std_logic_vector (1 downto 0);
+  signal n1423 : std_logic;
+  signal n1424 : std_logic_vector (1 downto 0);
+  signal n1425 : std_logic;
+  signal n1426 : std_logic;
+  signal n1427 : std_logic;
+  signal n1428 : std_logic;
+  signal n1429 : std_logic;
+  signal n1430 : std_logic;
+  signal n1431 : std_logic;
+  signal n1432 : std_logic;
+  signal n1433 : std_logic;
+  signal n1434 : std_logic;
+  signal n1435 : std_logic;
+  signal n1436 : std_logic;
+  signal n1437 : std_logic;
+  signal n1438 : std_logic;
+  signal n1439 : std_logic;
+  signal n1440 : std_logic;
+  signal n1441 : std_logic;
+  signal n1442 : std_logic;
+  signal n1443 : std_logic;
+  signal n1444 : std_logic;
+  signal n1445 : std_logic;
+  signal n1446 : std_logic;
+  signal n1447 : std_logic;
+  signal n1448 : std_logic;
+  signal n1449 : std_logic;
+  signal n1450 : std_logic;
+  signal n1451 : std_logic;
+  signal n1452 : std_logic;
+  signal n1453 : std_logic;
+  signal n1454 : std_logic;
+  signal n1455 : std_logic;
+  signal n1456 : std_logic;
+  signal n1457 : std_logic;
+  signal n1458 : std_logic;
+  signal n1459 : std_logic;
+  signal n1460 : std_logic;
+  signal n1461 : std_logic;
+  signal n1462 : std_logic_vector (7 downto 0);
+begin
+  tx <= n1410;
+  tx_busy <= n1411;
+  rx_data <= n1412;
+  rx_done <= n1413;
+  -- ../src/hdl/interfaces/uart_controller.vhd:27:12
+  tx_state <= n1401; -- (signal)
+  -- ../src/hdl/interfaces/uart_controller.vhd:28:12
+  rx_state <= n1402; -- (signal)
+  -- ../src/hdl/interfaces/uart_controller.vhd:31:12
+  rx_clk_count <= n1403; -- (signal)
+  -- ../src/hdl/interfaces/uart_controller.vhd:32:12
+  rx_bit_index <= n1404; -- (signal)
+  -- ../src/hdl/interfaces/uart_controller.vhd:33:12
+  rx_buffer <= n1405; -- (signal)
+  -- ../src/hdl/interfaces/uart_controller.vhd:34:12
+  rx_sync <= n1406; -- (signal)
+  -- ../src/hdl/interfaces/uart_controller.vhd:37:12
+  tx_clk_count <= n1407; -- (signal)
+  -- ../src/hdl/interfaces/uart_controller.vhd:38:12
+  tx_bit_index <= n1408; -- (signal)
+  -- ../src/hdl/interfaces/uart_controller.vhd:39:12
+  tx_buffer <= n1409; -- (signal)
+  -- ../src/hdl/interfaces/uart_controller.vhd:61:21
+  n1190 <= '0' when tx_start = '0' else '1';
+  -- ../src/hdl/interfaces/uart_controller.vhd:61:21
+  n1193 <= tx_state when tx_start = '0' else "01";
+  -- ../src/hdl/interfaces/uart_controller.vhd:61:21
+  n1194 <= tx_buffer when tx_start = '0' else tx_data;
+  -- ../src/hdl/interfaces/uart_controller.vhd:55:17
+  n1196 <= '1' when tx_state = "00" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:70:37
+  n1197 <= "0000000000000000000000" & tx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:70:37
+  n1199 <= '1' when n1197 = "00000000000000000000001101100011" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:74:54
+  n1200 <= "0000000000000000000000" & tx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:74:54
+  n1202 <= std_logic_vector (unsigned (n1200) + unsigned'("00000000000000000000000000000001"));
+  -- ../src/hdl/interfaces/uart_controller.vhd:74:41
+  n1203 <= n1202 (9 downto 0);  --  trunc
+  -- ../src/hdl/interfaces/uart_controller.vhd:70:21
+  n1205 <= tx_state when n1199 = '0' else "10";
+  -- ../src/hdl/interfaces/uart_controller.vhd:70:21
+  n1207 <= n1203 when n1199 = '0' else "0000000000";
+  -- ../src/hdl/interfaces/uart_controller.vhd:67:17
+  n1209 <= '1' when tx_state = "01" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:80:37
+  n1212 <= "0000000000000000000000" & tx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:80:37
+  n1214 <= '1' when n1212 = "00000000000000000000001101100011" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:83:41
+  n1215 <= "00000000000000000000000000000" & tx_bit_index;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:83:41
+  n1217 <= '1' when n1215 = "00000000000000000000000000000111" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:87:58
+  n1218 <= "00000000000000000000000000000" & tx_bit_index;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:87:58
+  n1220 <= std_logic_vector (unsigned (n1218) + unsigned'("00000000000000000000000000000001"));
+  -- ../src/hdl/interfaces/uart_controller.vhd:87:45
+  n1221 <= n1220 (2 downto 0);  --  trunc
+  -- ../src/hdl/interfaces/uart_controller.vhd:80:21
+  n1223 <= tx_state when n1230 = '0' else "11";
+  -- ../src/hdl/interfaces/uart_controller.vhd:83:25
+  n1225 <= n1221 when n1217 = '0' else "000";
+  -- ../src/hdl/interfaces/uart_controller.vhd:90:54
+  n1226 <= "0000000000000000000000" & tx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:90:54
+  n1228 <= std_logic_vector (unsigned (n1226) + unsigned'("00000000000000000000000000000001"));
+  -- ../src/hdl/interfaces/uart_controller.vhd:90:41
+  n1229 <= n1228 (9 downto 0);  --  trunc
+  -- ../src/hdl/interfaces/uart_controller.vhd:80:21
+  n1230 <= n1217 and n1214;
+  -- ../src/hdl/interfaces/uart_controller.vhd:80:21
+  n1232 <= n1229 when n1214 = '0' else "0000000000";
+  -- ../src/hdl/interfaces/uart_controller.vhd:80:21
+  n1233 <= tx_bit_index when n1214 = '0' else n1225;
+  -- ../src/hdl/interfaces/uart_controller.vhd:77:17
+  n1235 <= '1' when tx_state = "10" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:96:37
+  n1236 <= "0000000000000000000000" & tx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:96:37
+  n1238 <= '1' when n1236 = "00000000000000000000001101100011" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:99:54
+  n1239 <= "0000000000000000000000" & tx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:99:54
+  n1241 <= std_logic_vector (unsigned (n1239) + unsigned'("00000000000000000000000000000001"));
+  -- ../src/hdl/interfaces/uart_controller.vhd:99:41
+  n1242 <= n1241 (9 downto 0);  --  trunc
+  -- ../src/hdl/interfaces/uart_controller.vhd:96:21
+  n1244 <= tx_state when n1238 = '0' else "00";
+  -- ../src/hdl/interfaces/uart_controller.vhd:96:21
+  n1245 <= n1242 when n1238 = '0' else tx_clk_count;
+  -- ../src/hdl/interfaces/uart_controller.vhd:93:17
+  n1247 <= '1' when tx_state = "11" else '0';
+  n1248 <= n1247 & n1235 & n1209 & n1196;
+  -- ../src/hdl/interfaces/uart_controller.vhd:54:13
+  with n1248 select n1253 <=
+    '1' when "1000",
+    n1427 when "0100",
+    '0' when "0010",
+    '1' when "0001",
+    'X' when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:54:13
+  with n1248 select n1255 <=
+    n1411 when "1000",
+    n1411 when "0100",
+    n1411 when "0010",
+    n1190 when "0001",
+    'X' when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:54:13
+  with n1248 select n1257 <=
+    n1244 when "1000",
+    n1223 when "0100",
+    n1205 when "0010",
+    n1193 when "0001",
+    "XX" when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:54:13
+  with n1248 select n1260 <=
+    n1245 when "1000",
+    n1232 when "0100",
+    n1207 when "0010",
+    "0000000000" when "0001",
+    (9 downto 0 => 'X') when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:54:13
+  with n1248 select n1263 <=
+    tx_bit_index when "1000",
+    n1233 when "0100",
+    tx_bit_index when "0010",
+    "000" when "0001",
+    "XXX" when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:54:13
+  with n1248 select n1265 <=
+    tx_buffer when "1000",
+    tx_buffer when "0100",
+    tx_buffer when "0010",
+    n1194 when "0001",
+    "XXXXXXXX" when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:119:31
+  n1287 <= rx_sync (0);
+  -- ../src/hdl/interfaces/uart_controller.vhd:119:35
+  n1288 <= n1287 & rx;
+  -- ../src/hdl/interfaces/uart_controller.vhd:127:31
+  n1289 <= rx_sync (1);
+  -- ../src/hdl/interfaces/uart_controller.vhd:127:35
+  n1290 <= not n1289;
+  -- ../src/hdl/interfaces/uart_controller.vhd:127:21
+  n1292 <= rx_state when n1290 = '0' else "01";
+  -- ../src/hdl/interfaces/uart_controller.vhd:123:17
+  n1294 <= '1' when rx_state = "00" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:132:37
+  n1295 <= "0000000000000000000000" & rx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:132:37
+  n1297 <= '1' when n1295 = "00000000000000000000000110110010" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:133:35
+  n1298 <= rx_sync (1);
+  -- ../src/hdl/interfaces/uart_controller.vhd:133:39
+  n1299 <= not n1298;
+  -- ../src/hdl/interfaces/uart_controller.vhd:133:25
+  n1302 <= "00" when n1299 = '0' else "10";
+  -- ../src/hdl/interfaces/uart_controller.vhd:133:25
+  n1304 <= rx_clk_count when n1299 = '0' else "0000000000";
+  -- ../src/hdl/interfaces/uart_controller.vhd:140:54
+  n1305 <= "0000000000000000000000" & rx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:140:54
+  n1307 <= std_logic_vector (unsigned (n1305) + unsigned'("00000000000000000000000000000001"));
+  -- ../src/hdl/interfaces/uart_controller.vhd:140:41
+  n1308 <= n1307 (9 downto 0);  --  trunc
+  -- ../src/hdl/interfaces/uart_controller.vhd:132:21
+  n1309 <= rx_state when n1297 = '0' else n1302;
+  -- ../src/hdl/interfaces/uart_controller.vhd:132:21
+  n1310 <= n1308 when n1297 = '0' else n1304;
+  -- ../src/hdl/interfaces/uart_controller.vhd:131:17
+  n1312 <= '1' when rx_state = "01" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:144:37
+  n1313 <= "0000000000000000000000" & rx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:144:37
+  n1315 <= '1' when n1313 = "00000000000000000000001101100011" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:59
+  n1317 <= rx_sync (1);
+  -- ../src/hdl/interfaces/uart_controller.vhd:148:41
+  n1319 <= "00000000000000000000000000000" & rx_bit_index;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:148:41
+  n1321 <= '1' when n1319 = "00000000000000000000000000000111" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:152:58
+  n1322 <= "00000000000000000000000000000" & rx_bit_index;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:152:58
+  n1324 <= std_logic_vector (unsigned (n1322) + unsigned'("00000000000000000000000000000001"));
+  -- ../src/hdl/interfaces/uart_controller.vhd:152:45
+  n1325 <= n1324 (2 downto 0);  --  trunc
+  -- ../src/hdl/interfaces/uart_controller.vhd:144:21
+  n1327 <= rx_state when n1334 = '0' else "11";
+  -- ../src/hdl/interfaces/uart_controller.vhd:148:25
+  n1329 <= n1325 when n1321 = '0' else "000";
+  -- ../src/hdl/interfaces/uart_controller.vhd:155:54
+  n1330 <= "0000000000000000000000" & rx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:155:54
+  n1332 <= std_logic_vector (unsigned (n1330) + unsigned'("00000000000000000000000000000001"));
+  -- ../src/hdl/interfaces/uart_controller.vhd:155:41
+  n1333 <= n1332 (9 downto 0);  --  trunc
+  -- ../src/hdl/interfaces/uart_controller.vhd:144:21
+  n1334 <= n1321 and n1315;
+  -- ../src/hdl/interfaces/uart_controller.vhd:144:21
+  n1336 <= n1333 when n1315 = '0' else "0000000000";
+  -- ../src/hdl/interfaces/uart_controller.vhd:144:21
+  n1337 <= rx_bit_index when n1315 = '0' else n1329;
+  -- ../src/hdl/interfaces/uart_controller.vhd:144:21
+  n1338 <= rx_buffer when n1315 = '0' else n1462;
+  -- ../src/hdl/interfaces/uart_controller.vhd:143:17
+  n1340 <= '1' when rx_state = "10" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:159:37
+  n1341 <= "0000000000000000000000" & rx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:159:37
+  n1343 <= '1' when n1341 = "00000000000000000000001101100011" else '0';
+  -- ../src/hdl/interfaces/uart_controller.vhd:160:35
+  n1344 <= rx_sync (1);
+  -- ../src/hdl/interfaces/uart_controller.vhd:159:21
+  n1345 <= n1412 when n1353 = '0' else rx_buffer;
+  -- ../src/hdl/interfaces/uart_controller.vhd:160:25
+  n1348 <= '0' when n1344 = '0' else '1';
+  -- ../src/hdl/interfaces/uart_controller.vhd:167:54
+  n1349 <= "0000000000000000000000" & rx_clk_count;  --  uext
+  -- ../src/hdl/interfaces/uart_controller.vhd:167:54
+  n1351 <= std_logic_vector (unsigned (n1349) + unsigned'("00000000000000000000000000000001"));
+  -- ../src/hdl/interfaces/uart_controller.vhd:167:41
+  n1352 <= n1351 (9 downto 0);  --  trunc
+  -- ../src/hdl/interfaces/uart_controller.vhd:159:21
+  n1353 <= n1344 and n1343;
+  -- ../src/hdl/interfaces/uart_controller.vhd:159:21
+  n1355 <= '0' when n1343 = '0' else n1348;
+  -- ../src/hdl/interfaces/uart_controller.vhd:159:21
+  n1357 <= rx_state when n1343 = '0' else "00";
+  -- ../src/hdl/interfaces/uart_controller.vhd:159:21
+  n1359 <= n1352 when n1343 = '0' else "0000000000";
+  -- ../src/hdl/interfaces/uart_controller.vhd:158:17
+  n1361 <= '1' when rx_state = "11" else '0';
+  n1362 <= n1361 & n1340 & n1312 & n1294;
+  -- ../src/hdl/interfaces/uart_controller.vhd:122:13
+  with n1362 select n1364 <=
+    n1345 when "1000",
+    n1412 when "0100",
+    n1412 when "0010",
+    n1412 when "0001",
+    "XXXXXXXX" when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:122:13
+  with n1362 select n1367 <=
+    n1355 when "1000",
+    '0' when "0100",
+    '0' when "0010",
+    '0' when "0001",
+    'X' when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:122:13
+  with n1362 select n1370 <=
+    n1357 when "1000",
+    n1327 when "0100",
+    n1309 when "0010",
+    n1292 when "0001",
+    "XX" when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:122:13
+  with n1362 select n1373 <=
+    n1359 when "1000",
+    n1336 when "0100",
+    n1310 when "0010",
+    "0000000000" when "0001",
+    (9 downto 0 => 'X') when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:122:13
+  with n1362 select n1376 <=
+    rx_bit_index when "1000",
+    n1337 when "0100",
+    rx_bit_index when "0010",
+    "000" when "0001",
+    "XXX" when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:122:13
+  with n1362 select n1378 <=
+    rx_buffer when "1000",
+    n1338 when "0100",
+    rx_buffer when "0010",
+    rx_buffer when "0001",
+    "XXXXXXXX" when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:53:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1401 <= "00";
+    elsif rising_edge (clk) then
+      n1401 <= n1257;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:117:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1402 <= "00";
+    elsif rising_edge (clk) then
+      n1402 <= n1370;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:117:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1403 <= "0000000000";
+    elsif rising_edge (clk) then
+      n1403 <= n1373;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:117:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1404 <= "000";
+    elsif rising_edge (clk) then
+      n1404 <= n1376;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:117:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1405 <= "00000000";
+    elsif rising_edge (clk) then
+      n1405 <= n1378;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:117:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1406 <= "11";
+    elsif rising_edge (clk) then
+      n1406 <= n1288;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:53:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1407 <= "0000000000";
+    elsif rising_edge (clk) then
+      n1407 <= n1260;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:53:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1408 <= "000";
+    elsif rising_edge (clk) then
+      n1408 <= n1263;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:53:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1409 <= "00000000";
+    elsif rising_edge (clk) then
+      n1409 <= n1265;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:53:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1410 <= '1';
+    elsif rising_edge (clk) then
+      n1410 <= n1253;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:53:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1411 <= '0';
+    elsif rising_edge (clk) then
+      n1411 <= n1255;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:117:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1412 <= "00000000";
+    elsif rising_edge (clk) then
+      n1412 <= n1364;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:117:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1413 <= '0';
+    elsif rising_edge (clk) then
+      n1413 <= n1367;
+    end if;
+  end process;
+  -- ../src/hdl/interfaces/uart_controller.vhd:21:9
+  n1414 <= tx_buffer (0);
+  -- ../src/hdl/interfaces/uart_controller.vhd:20:9
+  n1415 <= tx_buffer (1);
+  -- ../src/hdl/interfaces/uart_controller.vhd:19:9
+  n1416 <= tx_buffer (2);
+  -- ../src/hdl/interfaces/uart_controller.vhd:15:9
+  n1417 <= tx_buffer (3);
+  n1418 <= tx_buffer (4);
+  n1419 <= tx_buffer (5);
+  -- ../src/hdl/interfaces/uart_controller.vhd:106:5
+  n1420 <= tx_buffer (6);
+  n1421 <= tx_buffer (7);
+  -- ../src/hdl/interfaces/uart_controller.vhd:78:36
+  n1422 <= tx_bit_index (1 downto 0);
+  -- ../src/hdl/interfaces/uart_controller.vhd:78:36
+  with n1422 select n1423 <=
+    n1414 when "00",
+    n1415 when "01",
+    n1416 when "10",
+    n1417 when "11",
+    'X' when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:78:36
+  n1424 <= tx_bit_index (1 downto 0);
+  -- ../src/hdl/interfaces/uart_controller.vhd:78:36
+  with n1424 select n1425 <=
+    n1418 when "00",
+    n1419 when "01",
+    n1420 when "10",
+    n1421 when "11",
+    'X' when others;
+  -- ../src/hdl/interfaces/uart_controller.vhd:78:36
+  n1426 <= tx_bit_index (2);
+  -- ../src/hdl/interfaces/uart_controller.vhd:78:36
+  n1427 <= n1423 when n1426 = '0' else n1425;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1428 <= rx_bit_index (2);
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1429 <= not n1428;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1430 <= rx_bit_index (1);
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1431 <= not n1430;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1432 <= n1429 and n1431;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1433 <= n1429 and n1430;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1434 <= n1428 and n1431;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1435 <= n1428 and n1430;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1436 <= rx_bit_index (0);
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1437 <= not n1436;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1438 <= n1432 and n1437;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1439 <= n1432 and n1436;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1440 <= n1433 and n1437;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1441 <= n1433 and n1436;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1442 <= n1434 and n1437;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1443 <= n1434 and n1436;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1444 <= n1435 and n1437;
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1445 <= n1435 and n1436;
+  n1446 <= rx_buffer (0);
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1447 <= n1446 when n1438 = '0' else n1317;
+  n1448 <= rx_buffer (1);
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1449 <= n1448 when n1439 = '0' else n1317;
+  n1450 <= rx_buffer (2);
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1451 <= n1450 when n1440 = '0' else n1317;
+  n1452 <= rx_buffer (3);
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1453 <= n1452 when n1441 = '0' else n1317;
+  n1454 <= rx_buffer (4);
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1455 <= n1454 when n1442 = '0' else n1317;
+  n1456 <= rx_buffer (5);
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1457 <= n1456 when n1443 = '0' else n1317;
+  n1458 <= rx_buffer (6);
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1459 <= n1458 when n1444 = '0' else n1317;
+  n1460 <= rx_buffer (7);
+  -- ../src/hdl/interfaces/uart_controller.vhd:146:25
+  n1461 <= n1460 when n1445 = '0' else n1317;
+  n1462 <= n1461 & n1459 & n1457 & n1455 & n1453 & n1451 & n1449 & n1447;
+end rtl;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity safety_monitor is
+  port (
+    clk : in std_logic;
+    rst : in std_logic;
+    voc_levels : in std_logic_vector (11 downto 0);
+    air_quality : in std_logic_vector (11 downto 0);
+    pressure_levels : in std_logic_vector (11 downto 0);
+    temperature : in std_logic_vector (11 downto 0);
+    flow_sensors : in std_logic_vector (7 downto 0);
+    voc_threshold : in std_logic_vector (11 downto 0);
+    aq_threshold : in std_logic_vector (11 downto 0);
+    press_threshold : in std_logic_vector (11 downto 0);
+    temp_threshold : in std_logic_vector (11 downto 0);
+    flow_threshold : in std_logic_vector (7 downto 0);
+    emergency_stop : out std_logic;
+    ventilation_on : out std_logic;
+    chamber_shutdown : out std_logic_vector (149 downto 0);
+    safety_status : out std_logic_vector (7 downto 0);
+    error_code : out std_logic_vector (7 downto 0);
+    error_location : out std_logic_vector (7 downto 0));
+end entity safety_monitor;
+
+architecture rtl of safety_monitor is
+  signal current_state : std_logic_vector (2 downto 0);
+  signal violation_counter : std_logic_vector (3 downto 0);
+  signal persistent_violation : std_logic;
+  signal emergency_stop_int : std_logic;
+  signal ventilation_on_int : std_logic;
+  signal n1065 : std_logic;
+  signal n1067 : std_logic_vector (3 downto 0);
+  signal n1069 : std_logic_vector (7 downto 0);
+  signal n1071 : std_logic_vector (7 downto 0);
+  signal n1073 : std_logic_vector (3 downto 0);
+  signal n1075 : std_logic;
+  signal n1077 : std_logic;
+  signal n1078 : std_logic;
+  signal n1080 : std_logic_vector (3 downto 0);
+  signal n1082 : std_logic_vector (7 downto 0);
+  signal n1084 : std_logic_vector (7 downto 0);
+  signal n1085 : std_logic_vector (3 downto 0);
+  signal n1087 : std_logic;
+  signal n1089 : std_logic;
+  signal n1090 : std_logic;
+  signal n1092 : std_logic_vector (149 downto 0);
+  signal n1094 : std_logic_vector (7 downto 0);
+  signal n1096 : std_logic_vector (7 downto 0);
+  signal n1098 : std_logic;
+  signal n1100 : std_logic;
+  signal n1101 : std_logic;
+  signal n1103 : std_logic_vector (149 downto 0);
+  signal n1105 : std_logic_vector (7 downto 0);
+  signal n1107 : std_logic_vector (7 downto 0);
+  signal n1109 : std_logic;
+  signal n1111 : std_logic;
+  signal n1112 : std_logic;
+  signal n1114 : std_logic_vector (7 downto 0);
+  signal n1116 : std_logic_vector (7 downto 0);
+  signal n1118 : std_logic;
+  signal n1119 : std_logic_vector (4 downto 0);
+  signal n1120 : std_logic_vector (149 downto 0);
+  signal n1121 : std_logic_vector (7 downto 0);
+  signal n1122 : std_logic_vector (7 downto 0);
+  signal n1129 : std_logic_vector (2 downto 0);
+  signal n1130 : std_logic_vector (3 downto 0);
+  signal n1131 : std_logic;
+  signal n1132 : std_logic;
+  signal n1134 : std_logic;
+  signal n1138 : std_logic;
+  signal n1139 : std_logic_vector (1 downto 0);
+  signal n1140 : std_logic_vector (2 downto 0);
+  signal n1142 : std_logic_vector (7 downto 0);
+  signal n1170 : std_logic_vector (2 downto 0);
+  signal n1171 : std_logic_vector (3 downto 0);
+  signal n1172 : std_logic;
+  signal n1173 : std_logic;
+  signal n1174 : std_logic;
+  signal n1175 : std_logic;
+  signal n1176 : std_logic_vector (149 downto 0);
+  signal n1177 : std_logic;
+  signal n1178 : std_logic_vector (7 downto 0);
+  signal n1179 : std_logic_vector (7 downto 0);
+  signal n1180 : std_logic_vector (7 downto 0);
+  signal n1181 : std_logic_vector (7 downto 0);
+begin
+  emergency_stop <= emergency_stop_int;
+  ventilation_on <= ventilation_on_int;
+  chamber_shutdown <= n1176;
+  safety_status <= n1179;
+  error_code <= n1180;
+  error_location <= n1181;
+  -- ../src/hdl/safety/safety_monitor.vhd:41:12
+  current_state <= n1170; -- (signal)
+  -- ../src/hdl/safety/safety_monitor.vhd:42:12
+  violation_counter <= n1171; -- (signal)
+  -- ../src/hdl/safety/safety_monitor.vhd:43:12
+  persistent_violation <= n1173; -- (signal)
+  -- ../src/hdl/safety/safety_monitor.vhd:46:12
+  emergency_stop_int <= n1174; -- (signal)
+  -- ../src/hdl/safety/safety_monitor.vhd:47:12
+  ventilation_on_int <= n1175; -- (signal)
+  -- ../src/hdl/safety/safety_monitor.vhd:64:45
+  n1065 <= '1' when unsigned (voc_levels) > unsigned (voc_threshold) else '0';
+  -- ../src/hdl/safety/safety_monitor.vhd:66:64
+  n1067 <= std_logic_vector (unsigned (violation_counter) + unsigned'("0001"));
+  -- ../src/hdl/safety/safety_monitor.vhd:64:21
+  n1069 <= n1180 when n1065 = '0' else "00000001";
+  -- ../src/hdl/safety/safety_monitor.vhd:64:21
+  n1071 <= n1181 when n1065 = '0' else "00000000";
+  -- ../src/hdl/safety/safety_monitor.vhd:64:21
+  n1073 <= "0000" when n1065 = '0' else n1067;
+  -- ../src/hdl/safety/safety_monitor.vhd:64:21
+  n1075 <= ventilation_on_int when n1065 = '0' else '1';
+  -- ../src/hdl/safety/safety_monitor.vhd:63:17
+  n1077 <= '1' when current_state = "000" else '0';
+  -- ../src/hdl/safety/safety_monitor.vhd:75:46
+  n1078 <= '1' when unsigned (air_quality) > unsigned (aq_threshold) else '0';
+  -- ../src/hdl/safety/safety_monitor.vhd:77:64
+  n1080 <= std_logic_vector (unsigned (violation_counter) + unsigned'("0001"));
+  -- ../src/hdl/safety/safety_monitor.vhd:75:21
+  n1082 <= n1180 when n1078 = '0' else "00000010";
+  -- ../src/hdl/safety/safety_monitor.vhd:75:21
+  n1084 <= n1181 when n1078 = '0' else "00000001";
+  -- ../src/hdl/safety/safety_monitor.vhd:75:21
+  n1085 <= violation_counter when n1078 = '0' else n1080;
+  -- ../src/hdl/safety/safety_monitor.vhd:75:21
+  n1087 <= ventilation_on_int when n1078 = '0' else '1';
+  -- ../src/hdl/safety/safety_monitor.vhd:74:17
+  n1089 <= '1' when current_state = "001" else '0';
+  -- ../src/hdl/safety/safety_monitor.vhd:84:50
+  n1090 <= '1' when unsigned (pressure_levels) > unsigned (press_threshold) else '0';
+  -- ../src/hdl/safety/safety_monitor.vhd:84:21
+  n1092 <= n1176 when n1090 = '0' else "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111";
+  -- ../src/hdl/safety/safety_monitor.vhd:84:21
+  n1094 <= n1180 when n1090 = '0' else "00000011";
+  -- ../src/hdl/safety/safety_monitor.vhd:84:21
+  n1096 <= n1181 when n1090 = '0' else "00000010";
+  -- ../src/hdl/safety/safety_monitor.vhd:84:21
+  n1098 <= emergency_stop_int when n1090 = '0' else '1';
+  -- ../src/hdl/safety/safety_monitor.vhd:83:17
+  n1100 <= '1' when current_state = "010" else '0';
+  -- ../src/hdl/safety/safety_monitor.vhd:93:46
+  n1101 <= '1' when unsigned (temperature) > unsigned (temp_threshold) else '0';
+  -- ../src/hdl/safety/safety_monitor.vhd:93:21
+  n1103 <= n1176 when n1101 = '0' else "111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111";
+  -- ../src/hdl/safety/safety_monitor.vhd:93:21
+  n1105 <= n1180 when n1101 = '0' else "00000100";
+  -- ../src/hdl/safety/safety_monitor.vhd:93:21
+  n1107 <= n1181 when n1101 = '0' else "00000011";
+  -- ../src/hdl/safety/safety_monitor.vhd:93:21
+  n1109 <= emergency_stop_int when n1101 = '0' else '1';
+  -- ../src/hdl/safety/safety_monitor.vhd:92:17
+  n1111 <= '1' when current_state = "011" else '0';
+  -- ../src/hdl/safety/safety_monitor.vhd:102:47
+  n1112 <= '1' when unsigned (flow_sensors) < unsigned (flow_threshold) else '0';
+  -- ../src/hdl/safety/safety_monitor.vhd:102:21
+  n1114 <= n1180 when n1112 = '0' else "00000101";
+  -- ../src/hdl/safety/safety_monitor.vhd:102:21
+  n1116 <= n1181 when n1112 = '0' else "00000100";
+  -- ../src/hdl/safety/safety_monitor.vhd:101:17
+  n1118 <= '1' when current_state = "100" else '0';
+  n1119 <= n1118 & n1111 & n1100 & n1089 & n1077;
+  -- ../src/hdl/safety/safety_monitor.vhd:62:13
+  with n1119 select n1120 <=
+    n1176 when "10000",
+    n1103 when "01000",
+    n1092 when "00100",
+    n1176 when "00010",
+    n1176 when "00001",
+    n1176 when others;
+  -- ../src/hdl/safety/safety_monitor.vhd:62:13
+  with n1119 select n1121 <=
+    n1114 when "10000",
+    n1105 when "01000",
+    n1094 when "00100",
+    n1082 when "00010",
+    n1069 when "00001",
+    n1180 when others;
+  -- ../src/hdl/safety/safety_monitor.vhd:62:13
+  with n1119 select n1122 <=
+    n1116 when "10000",
+    n1107 when "01000",
+    n1096 when "00100",
+    n1084 when "00010",
+    n1071 when "00001",
+    n1181 when others;
+  -- ../src/hdl/safety/safety_monitor.vhd:62:13
+  with n1119 select n1129 <=
+    "000" when "10000",
+    "100" when "01000",
+    "011" when "00100",
+    "010" when "00010",
+    "001" when "00001",
+    "000" when others;
+  -- ../src/hdl/safety/safety_monitor.vhd:62:13
+  with n1119 select n1130 <=
+    violation_counter when "10000",
+    violation_counter when "01000",
+    violation_counter when "00100",
+    n1085 when "00010",
+    n1073 when "00001",
+    violation_counter when others;
+  -- ../src/hdl/safety/safety_monitor.vhd:62:13
+  with n1119 select n1131 <=
+    emergency_stop_int when "10000",
+    n1109 when "01000",
+    n1098 when "00100",
+    emergency_stop_int when "00010",
+    emergency_stop_int when "00001",
+    emergency_stop_int when others;
+  -- ../src/hdl/safety/safety_monitor.vhd:62:13
+  with n1119 select n1132 <=
+    ventilation_on_int when "10000",
+    ventilation_on_int when "01000",
+    ventilation_on_int when "00100",
+    n1087 when "00010",
+    n1075 when "00001",
+    ventilation_on_int when others;
+  -- ../src/hdl/safety/safety_monitor.vhd:113:34
+  n1134 <= '1' when unsigned (violation_counter) > unsigned'("1000") else '0';
+  -- ../src/hdl/safety/safety_monitor.vhd:113:13
+  n1138 <= n1131 when n1134 = '0' else '1';
+  -- ../src/hdl/safety/safety_monitor.vhd:119:51
+  n1139 <= persistent_violation & emergency_stop_int;
+  -- ../src/hdl/safety/safety_monitor.vhd:120:47
+  n1140 <= n1139 & ventilation_on_int;
+  -- ../src/hdl/safety/safety_monitor.vhd:121:47
+  n1142 <= n1140 & "00000";
+  -- ../src/hdl/safety/safety_monitor.vhd:61:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1170 <= "000";
+    elsif rising_edge (clk) then
+      n1170 <= n1129;
+    end if;
+  end process;
+  -- ../src/hdl/safety/safety_monitor.vhd:61:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1171 <= "0000";
+    elsif rising_edge (clk) then
+      n1171 <= n1130;
+    end if;
+  end process;
+  -- ../src/hdl/safety/safety_monitor.vhd:61:9
+  n1172 <= persistent_violation when n1134 = '0' else '1';
+  -- ../src/hdl/safety/safety_monitor.vhd:61:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1173 <= '0';
+    elsif rising_edge (clk) then
+      n1173 <= n1172;
+    end if;
+  end process;
+  -- ../src/hdl/safety/safety_monitor.vhd:61:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1174 <= '0';
+    elsif rising_edge (clk) then
+      n1174 <= n1138;
+    end if;
+  end process;
+  -- ../src/hdl/safety/safety_monitor.vhd:61:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1175 <= '0';
+    elsif rising_edge (clk) then
+      n1175 <= n1132;
+    end if;
+  end process;
+  -- ../src/hdl/safety/safety_monitor.vhd:61:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1176 <= "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+    elsif rising_edge (clk) then
+      n1176 <= n1120;
+    end if;
+  end process;
+  -- ../src/hdl/safety/safety_monitor.vhd:49:5
+  n1177 <= not rst;
+  -- ../src/hdl/safety/safety_monitor.vhd:61:9
+  n1178 <= n1179 when n1177 = '0' else n1142;
+  -- ../src/hdl/safety/safety_monitor.vhd:61:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n1179 <= n1178;
+    end if;
+  end process;
+  -- ../src/hdl/safety/safety_monitor.vhd:61:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1180 <= "00000000";
+    elsif rising_edge (clk) then
+      n1180 <= n1121;
+    end if;
+  end process;
+  -- ../src/hdl/safety/safety_monitor.vhd:61:9
+  process (clk, rst)
+  begin
+    if rst = '1' then
+      n1181 <= "00000000";
+    elsif rising_edge (clk) then
+      n1181 <= n1122;
+    end if;
+  end process;
+end rtl;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity sensor_hub is
+  port (
+    clk : in std_logic;
+    rst : in std_logic;
+    adc_spi_miso : in std_logic;
+    cal_mode : in std_logic;
+    cal_data : in std_logic_vector (15 downto 0);
+    cal_addr : in std_logic_vector (7 downto 0);
+    cal_wr : in std_logic;
+    scl : inout std_logic_vector (3 downto 0);
+    sda : inout std_logic_vector (3 downto 0);
+    adc_spi_sclk : out std_logic;
+    adc_spi_mosi : out std_logic;
+    adc_spi_cs_n : out std_logic_vector (7 downto 0);
+    voc_data : out std_logic_vector (11 downto 0);
+    aq_data : out std_logic_vector (11 downto 0);
+    pressure_data : out std_logic_vector (11 downto 0);
+    temp_data : out std_logic_vector (11 downto 0);
+    flow_data : out std_logic_vector (7 downto 0);
+    sensor_status : out std_logic_vector (7 downto 0);
+    error_flags : out std_logic_vector (7 downto 0));
+end entity sensor_hub;
+
+architecture rtl of sensor_hub is
+  signal n245_c_o : std_logic_vector (3 downto 0);
+  signal n245_c_oport : std_logic_vector (3 downto 0);
+  signal n246_c_o : std_logic_vector (3 downto 0);
+  signal n246_c_oport : std_logic_vector (3 downto 0);
+  signal voc_buffer : std_logic_vector (95 downto 0);
+  signal aq_buffer : std_logic_vector (95 downto 0);
+  signal pressure_buffer : std_logic_vector (95 downto 0);
+  signal temp_buffer : std_logic_vector (95 downto 0);
+  signal voc_data_internal : std_logic_vector (11 downto 0);
+  signal aq_data_internal : std_logic_vector (11 downto 0);
+  signal cal_storage : std_logic_vector (63 downto 0);
+  signal current_state : std_logic_vector (2 downto 0);
+  signal buffer_index : std_logic_vector (2 downto 0);
+  signal spi_active : std_logic;
+  signal spi_done : std_logic;
+  signal spi_counter : std_logic_vector (4 downto 0);
+  signal spi_data_out : std_logic_vector (15 downto 0);
+  signal spi_data_in : std_logic_vector (15 downto 0);
+  signal sample_timeout : std_logic_vector (15 downto 0);
+  signal adc_valid : std_logic;
+  signal cs_control : std_logic_vector (7 downto 0);
+  signal n277 : std_logic;
+  signal n279 : std_logic;
+  signal n281 : std_logic_vector (2 downto 0);
+  signal n283 : std_logic_vector (2 downto 0);
+  signal n285 : std_logic_vector (7 downto 0);
+  signal n288 : std_logic;
+  signal n290 : std_logic;
+  signal n293 : std_logic_vector (2 downto 0);
+  signal n295 : std_logic_vector (11 downto 0);
+  signal n297 : std_logic_vector (95 downto 0);
+  signal n299 : std_logic_vector (2 downto 0);
+  signal n301 : std_logic;
+  signal n304 : std_logic_vector (2 downto 0);
+  signal n306 : std_logic_vector (11 downto 0);
+  signal n308 : std_logic_vector (95 downto 0);
+  signal n310 : std_logic_vector (2 downto 0);
+  signal n312 : std_logic;
+  signal n315 : std_logic_vector (2 downto 0);
+  signal n317 : std_logic_vector (11 downto 0);
+  signal n319 : std_logic_vector (95 downto 0);
+  signal n321 : std_logic_vector (2 downto 0);
+  signal n323 : std_logic;
+  signal n326 : std_logic_vector (2 downto 0);
+  signal n328 : std_logic_vector (11 downto 0);
+  signal n330 : std_logic_vector (95 downto 0);
+  signal n332 : std_logic_vector (2 downto 0);
+  signal n338 : std_logic;
+  signal n339 : std_logic_vector (11 downto 0);
+  signal n340 : std_logic_vector (7 downto 0);
+  signal n341 : std_logic_vector (19 downto 0);
+  signal n342 : std_logic_vector (19 downto 0);
+  signal n343 : std_logic_vector (19 downto 0);
+  signal n345 : std_logic_vector (19 downto 0);
+  signal n347 : std_logic_vector (11 downto 0);
+  signal n348 : std_logic_vector (7 downto 0);
+  signal n349 : std_logic_vector (19 downto 0);
+  signal n350 : std_logic_vector (19 downto 0);
+  signal n351 : std_logic_vector (19 downto 0);
+  signal n352 : std_logic_vector (19 downto 0);
+  signal n353 : std_logic_vector (11 downto 0);
+  signal n354 : std_logic_vector (7 downto 0);
+  signal n355 : std_logic_vector (19 downto 0);
+  signal n356 : std_logic_vector (19 downto 0);
+  signal n357 : std_logic_vector (19 downto 0);
+  signal n358 : std_logic_vector (19 downto 0);
+  signal n359 : std_logic_vector (11 downto 0);
+  signal n360 : std_logic_vector (7 downto 0);
+  signal n361 : std_logic_vector (19 downto 0);
+  signal n362 : std_logic_vector (19 downto 0);
+  signal n363 : std_logic_vector (19 downto 0);
+  signal n364 : std_logic_vector (19 downto 0);
+  signal n365 : std_logic_vector (11 downto 0);
+  signal n366 : std_logic_vector (7 downto 0);
+  signal n367 : std_logic_vector (19 downto 0);
+  signal n368 : std_logic_vector (19 downto 0);
+  signal n369 : std_logic_vector (19 downto 0);
+  signal n370 : std_logic_vector (19 downto 0);
+  signal n371 : std_logic_vector (11 downto 0);
+  signal n372 : std_logic_vector (7 downto 0);
+  signal n373 : std_logic_vector (19 downto 0);
+  signal n374 : std_logic_vector (19 downto 0);
+  signal n375 : std_logic_vector (19 downto 0);
+  signal n376 : std_logic_vector (19 downto 0);
+  signal n377 : std_logic_vector (11 downto 0);
+  signal n378 : std_logic_vector (7 downto 0);
+  signal n379 : std_logic_vector (19 downto 0);
+  signal n380 : std_logic_vector (19 downto 0);
+  signal n381 : std_logic_vector (19 downto 0);
+  signal n382 : std_logic_vector (19 downto 0);
+  signal n383 : std_logic_vector (11 downto 0);
+  signal n384 : std_logic_vector (7 downto 0);
+  signal n385 : std_logic_vector (19 downto 0);
+  signal n386 : std_logic_vector (19 downto 0);
+  signal n387 : std_logic_vector (19 downto 0);
+  signal n388 : std_logic_vector (19 downto 0);
+  signal n389 : std_logic_vector (16 downto 0);
+  signal n390 : std_logic_vector (11 downto 0);
+  signal n391 : std_logic_vector (11 downto 0);
+  signal n392 : std_logic_vector (7 downto 0);
+  signal n393 : std_logic_vector (19 downto 0);
+  signal n394 : std_logic_vector (19 downto 0);
+  signal n395 : std_logic_vector (19 downto 0);
+  signal n397 : std_logic_vector (19 downto 0);
+  signal n399 : std_logic_vector (11 downto 0);
+  signal n400 : std_logic_vector (7 downto 0);
+  signal n401 : std_logic_vector (19 downto 0);
+  signal n402 : std_logic_vector (19 downto 0);
+  signal n403 : std_logic_vector (19 downto 0);
+  signal n404 : std_logic_vector (19 downto 0);
+  signal n405 : std_logic_vector (11 downto 0);
+  signal n406 : std_logic_vector (7 downto 0);
+  signal n407 : std_logic_vector (19 downto 0);
+  signal n408 : std_logic_vector (19 downto 0);
+  signal n409 : std_logic_vector (19 downto 0);
+  signal n410 : std_logic_vector (19 downto 0);
+  signal n411 : std_logic_vector (11 downto 0);
+  signal n412 : std_logic_vector (7 downto 0);
+  signal n413 : std_logic_vector (19 downto 0);
+  signal n414 : std_logic_vector (19 downto 0);
+  signal n415 : std_logic_vector (19 downto 0);
+  signal n416 : std_logic_vector (19 downto 0);
+  signal n417 : std_logic_vector (11 downto 0);
+  signal n418 : std_logic_vector (7 downto 0);
+  signal n419 : std_logic_vector (19 downto 0);
+  signal n420 : std_logic_vector (19 downto 0);
+  signal n421 : std_logic_vector (19 downto 0);
+  signal n422 : std_logic_vector (19 downto 0);
+  signal n423 : std_logic_vector (11 downto 0);
+  signal n424 : std_logic_vector (7 downto 0);
+  signal n425 : std_logic_vector (19 downto 0);
+  signal n426 : std_logic_vector (19 downto 0);
+  signal n427 : std_logic_vector (19 downto 0);
+  signal n428 : std_logic_vector (19 downto 0);
+  signal n429 : std_logic_vector (11 downto 0);
+  signal n430 : std_logic_vector (7 downto 0);
+  signal n431 : std_logic_vector (19 downto 0);
+  signal n432 : std_logic_vector (19 downto 0);
+  signal n433 : std_logic_vector (19 downto 0);
+  signal n434 : std_logic_vector (19 downto 0);
+  signal n435 : std_logic_vector (11 downto 0);
+  signal n436 : std_logic_vector (7 downto 0);
+  signal n437 : std_logic_vector (19 downto 0);
+  signal n438 : std_logic_vector (19 downto 0);
+  signal n439 : std_logic_vector (19 downto 0);
+  signal n440 : std_logic_vector (19 downto 0);
+  signal n441 : std_logic_vector (16 downto 0);
+  signal n442 : std_logic_vector (11 downto 0);
+  signal n443 : std_logic_vector (11 downto 0);
+  signal n444 : std_logic_vector (7 downto 0);
+  signal n445 : std_logic_vector (19 downto 0);
+  signal n446 : std_logic_vector (19 downto 0);
+  signal n447 : std_logic_vector (19 downto 0);
+  signal n449 : std_logic_vector (19 downto 0);
+  signal n451 : std_logic_vector (11 downto 0);
+  signal n452 : std_logic_vector (7 downto 0);
+  signal n453 : std_logic_vector (19 downto 0);
+  signal n454 : std_logic_vector (19 downto 0);
+  signal n455 : std_logic_vector (19 downto 0);
+  signal n456 : std_logic_vector (19 downto 0);
+  signal n457 : std_logic_vector (11 downto 0);
+  signal n458 : std_logic_vector (7 downto 0);
+  signal n459 : std_logic_vector (19 downto 0);
+  signal n460 : std_logic_vector (19 downto 0);
+  signal n461 : std_logic_vector (19 downto 0);
+  signal n462 : std_logic_vector (19 downto 0);
+  signal n463 : std_logic_vector (11 downto 0);
+  signal n464 : std_logic_vector (7 downto 0);
+  signal n465 : std_logic_vector (19 downto 0);
+  signal n466 : std_logic_vector (19 downto 0);
+  signal n467 : std_logic_vector (19 downto 0);
+  signal n468 : std_logic_vector (19 downto 0);
+  signal n469 : std_logic_vector (11 downto 0);
+  signal n470 : std_logic_vector (7 downto 0);
+  signal n471 : std_logic_vector (19 downto 0);
+  signal n472 : std_logic_vector (19 downto 0);
+  signal n473 : std_logic_vector (19 downto 0);
+  signal n474 : std_logic_vector (19 downto 0);
+  signal n475 : std_logic_vector (11 downto 0);
+  signal n476 : std_logic_vector (7 downto 0);
+  signal n477 : std_logic_vector (19 downto 0);
+  signal n478 : std_logic_vector (19 downto 0);
+  signal n479 : std_logic_vector (19 downto 0);
+  signal n480 : std_logic_vector (19 downto 0);
+  signal n481 : std_logic_vector (11 downto 0);
+  signal n482 : std_logic_vector (7 downto 0);
+  signal n483 : std_logic_vector (19 downto 0);
+  signal n484 : std_logic_vector (19 downto 0);
+  signal n485 : std_logic_vector (19 downto 0);
+  signal n486 : std_logic_vector (19 downto 0);
+  signal n487 : std_logic_vector (11 downto 0);
+  signal n488 : std_logic_vector (7 downto 0);
+  signal n489 : std_logic_vector (19 downto 0);
+  signal n490 : std_logic_vector (19 downto 0);
+  signal n491 : std_logic_vector (19 downto 0);
+  signal n492 : std_logic_vector (19 downto 0);
+  signal n493 : std_logic_vector (16 downto 0);
+  signal n494 : std_logic_vector (11 downto 0);
+  signal n495 : std_logic_vector (11 downto 0);
+  signal n496 : std_logic_vector (7 downto 0);
+  signal n497 : std_logic_vector (19 downto 0);
+  signal n498 : std_logic_vector (19 downto 0);
+  signal n499 : std_logic_vector (19 downto 0);
+  signal n501 : std_logic_vector (19 downto 0);
+  signal n503 : std_logic_vector (11 downto 0);
+  signal n504 : std_logic_vector (7 downto 0);
+  signal n505 : std_logic_vector (19 downto 0);
+  signal n506 : std_logic_vector (19 downto 0);
+  signal n507 : std_logic_vector (19 downto 0);
+  signal n508 : std_logic_vector (19 downto 0);
+  signal n509 : std_logic_vector (11 downto 0);
+  signal n510 : std_logic_vector (7 downto 0);
+  signal n511 : std_logic_vector (19 downto 0);
+  signal n512 : std_logic_vector (19 downto 0);
+  signal n513 : std_logic_vector (19 downto 0);
+  signal n514 : std_logic_vector (19 downto 0);
+  signal n515 : std_logic_vector (11 downto 0);
+  signal n516 : std_logic_vector (7 downto 0);
+  signal n517 : std_logic_vector (19 downto 0);
+  signal n518 : std_logic_vector (19 downto 0);
+  signal n519 : std_logic_vector (19 downto 0);
+  signal n520 : std_logic_vector (19 downto 0);
+  signal n521 : std_logic_vector (11 downto 0);
+  signal n522 : std_logic_vector (7 downto 0);
+  signal n523 : std_logic_vector (19 downto 0);
+  signal n524 : std_logic_vector (19 downto 0);
+  signal n525 : std_logic_vector (19 downto 0);
+  signal n526 : std_logic_vector (19 downto 0);
+  signal n527 : std_logic_vector (11 downto 0);
+  signal n528 : std_logic_vector (7 downto 0);
+  signal n529 : std_logic_vector (19 downto 0);
+  signal n530 : std_logic_vector (19 downto 0);
+  signal n531 : std_logic_vector (19 downto 0);
+  signal n532 : std_logic_vector (19 downto 0);
+  signal n533 : std_logic_vector (11 downto 0);
+  signal n534 : std_logic_vector (7 downto 0);
+  signal n535 : std_logic_vector (19 downto 0);
+  signal n536 : std_logic_vector (19 downto 0);
+  signal n537 : std_logic_vector (19 downto 0);
+  signal n538 : std_logic_vector (19 downto 0);
+  signal n539 : std_logic_vector (11 downto 0);
+  signal n540 : std_logic_vector (7 downto 0);
+  signal n541 : std_logic_vector (19 downto 0);
+  signal n542 : std_logic_vector (19 downto 0);
+  signal n543 : std_logic_vector (19 downto 0);
+  signal n544 : std_logic_vector (19 downto 0);
+  signal n545 : std_logic_vector (16 downto 0);
+  signal n546 : std_logic_vector (11 downto 0);
+  signal n548 : std_logic;
+  signal n550 : std_logic_vector (2 downto 0);
+  signal n552 : std_logic_vector (2 downto 0);
+  signal n554 : std_logic;
+  signal n555 : std_logic_vector (5 downto 0);
+  signal n557 : std_logic_vector (11 downto 0);
+  signal n559 : std_logic_vector (11 downto 0);
+  signal n561 : std_logic_vector (95 downto 0);
+  signal n563 : std_logic_vector (95 downto 0);
+  signal n565 : std_logic_vector (95 downto 0);
+  signal n567 : std_logic_vector (95 downto 0);
+  signal n569 : std_logic_vector (11 downto 0);
+  signal n571 : std_logic_vector (11 downto 0);
+  signal n575 : std_logic_vector (2 downto 0);
+  signal n577 : std_logic_vector (2 downto 0);
+  signal n592 : std_logic_vector (11 downto 0);
+  signal n594 : std_logic_vector (11 downto 0);
+  signal n597 : std_logic_vector (95 downto 0);
+  signal n598 : std_logic_vector (95 downto 0);
+  signal n599 : std_logic_vector (95 downto 0);
+  signal n600 : std_logic_vector (95 downto 0);
+  signal n601 : std_logic_vector (11 downto 0);
+  signal n602 : std_logic_vector (11 downto 0);
+  signal n605 : std_logic_vector (2 downto 0);
+  signal n609 : std_logic_vector (2 downto 0);
+  signal n643 : std_logic;
+  signal n645 : std_logic;
+  signal n646 : std_logic;
+  signal n648 : std_logic;
+  signal n649 : std_logic;
+  signal n651 : std_logic;
+  signal n652 : std_logic;
+  signal n653 : std_logic;
+  signal n655 : std_logic;
+  signal n657 : std_logic_vector (4 downto 0);
+  signal n658 : std_logic;
+  signal n659 : std_logic;
+  signal n660 : std_logic;
+  signal n661 : std_logic_vector (14 downto 0);
+  signal n663 : std_logic_vector (15 downto 0);
+  signal n664 : std_logic_vector (14 downto 0);
+  signal n665 : std_logic_vector (15 downto 0);
+  signal n668 : std_logic;
+  signal n669 : std_logic;
+  signal n670 : std_logic_vector (15 downto 0);
+  signal n671 : std_logic_vector (15 downto 0);
+  signal n673 : std_logic;
+  signal n674 : std_logic;
+  signal n676 : std_logic;
+  signal n679 : std_logic;
+  signal n680 : std_logic_vector (4 downto 0);
+  signal n681 : std_logic;
+  signal n682 : std_logic_vector (15 downto 0);
+  signal n685 : std_logic;
+  signal n686 : std_logic;
+  signal n687 : std_logic;
+  signal n688 : std_logic;
+  signal n690 : std_logic;
+  signal n691 : std_logic;
+  signal n692 : std_logic;
+  signal n693 : std_logic;
+  signal n695 : std_logic;
+  signal n696 : std_logic;
+  signal n697 : std_logic;
+  signal n699 : std_logic;
+  signal n701 : std_logic;
+  signal n703 : std_logic_vector (4 downto 0);
+  signal n705 : std_logic_vector (15 downto 0);
+  signal n706 : std_logic_vector (15 downto 0);
+  signal n708 : std_logic;
+  signal n710 : std_logic;
+  signal n712 : std_logic;
+  signal n714 : std_logic;
+  signal n716 : std_logic;
+  signal n718 : std_logic_vector (4 downto 0);
+  signal n719 : std_logic_vector (15 downto 0);
+  signal n720 : std_logic_vector (15 downto 0);
+  signal n722 : std_logic;
+  signal n725 : std_logic;
+  signal n727 : std_logic;
+  signal n729 : std_logic;
+  signal n731 : std_logic;
+  signal n733 : std_logic_vector (4 downto 0);
+  signal n734 : std_logic_vector (15 downto 0);
+  signal n735 : std_logic_vector (15 downto 0);
+  signal n737 : std_logic;
+  signal n750 : std_logic;
+  signal n755 : std_logic;
+  signal n756 : std_logic;
+  signal n758 : std_logic;
+  signal n763 : std_logic;
+  signal n764 : std_logic;
+  signal n771 : std_logic;
+  signal n773 : std_logic;
+  signal n774 : std_logic;
+  signal n776 : std_logic;
+  signal n777 : std_logic;
+  signal n779 : std_logic;
+  signal n780 : std_logic;
+  signal n781 : std_logic;
+  signal n783 : std_logic_vector (15 downto 0);
+  signal n785 : std_logic;
+  signal n787 : std_logic;
+  signal n788 : std_logic;
+  signal n790 : std_logic;
+  signal n792 : std_logic_vector (15 downto 0);
+  signal n794 : std_logic;
+  signal n796 : std_logic_vector (15 downto 0);
+  signal n797 : std_logic_vector (1 downto 0);
+  signal n799 : std_logic_vector (1 downto 0);
+  signal n801 : std_logic_vector (5 downto 0);
+  signal n802 : std_logic_vector (5 downto 0);
+  signal n803 : std_logic_vector (1 downto 0);
+  signal n805 : std_logic_vector (1 downto 0);
+  signal n807 : std_logic_vector (4 downto 0);
+  signal n808 : std_logic_vector (4 downto 0);
+  signal n810 : std_logic;
+  signal n812 : std_logic_vector (15 downto 0);
+  signal n813 : std_logic_vector (7 downto 0);
+  signal n815 : std_logic_vector (7 downto 0);
+  signal n821 : std_logic;
+  signal n823 : std_logic;
+  signal n825 : std_logic;
+  signal n827 : std_logic;
+  signal n828 : std_logic_vector (3 downto 0);
+  signal n834 : std_logic_vector (7 downto 0);
+  signal n836 : std_logic_vector (7 downto 0);
+  signal n838 : std_logic_vector (95 downto 0) := "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+  signal n839 : std_logic_vector (95 downto 0) := "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+  signal n840 : std_logic_vector (95 downto 0) := "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+  signal n841 : std_logic_vector (95 downto 0) := "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
+  signal n842 : std_logic_vector (11 downto 0);
+  signal n843 : std_logic_vector (11 downto 0);
+  signal n844 : std_logic;
+  signal n845 : std_logic;
+  signal n847 : std_logic_vector (63 downto 0) := "0000000100000001000000010000000100000001000000010000000100000001";
+  signal n848 : std_logic_vector (2 downto 0);
+  signal n851 : std_logic_vector (2 downto 0) := "000";
+  signal n852 : std_logic := '0';
+  signal n853 : std_logic := '0';
+  signal n854 : std_logic_vector (4 downto 0) := "00000";
+  signal n855 : std_logic_vector (15 downto 0);
+  signal n856 : std_logic_vector (15 downto 0);
+  signal n859 : std_logic_vector (15 downto 0) := "0000000000000000";
+  signal n860 : std_logic := '0';
+  signal n861 : std_logic;
+  signal n862 : std_logic;
+  signal n863 : std_logic_vector (11 downto 0);
+  signal n864 : std_logic_vector (11 downto 0);
+  signal n865 : std_logic_vector (11 downto 0);
+  signal n866 : std_logic_vector (11 downto 0);
+  signal n867 : std_logic_vector (11 downto 0);
+  signal n868 : std_logic_vector (11 downto 0);
+  signal n869 : std_logic_vector (7 downto 0);
+  signal n870 : std_logic_vector (7 downto 0);
+  signal n871 : std_logic_vector (7 downto 0);
+  signal n872 : std_logic_vector (7 downto 0);
+  signal n873 : std_logic;
+  signal n874 : std_logic;
+  signal n875 : std_logic;
+  signal n876 : std_logic;
+  signal n877 : std_logic;
+  signal n878 : std_logic;
+  signal n879 : std_logic;
+  signal n880 : std_logic;
+  signal n881 : std_logic;
+  signal n882 : std_logic;
+  signal n883 : std_logic;
+  signal n884 : std_logic;
+  signal n885 : std_logic;
+  signal n886 : std_logic;
+  signal n887 : std_logic;
+  signal n888 : std_logic;
+  signal n889 : std_logic;
+  signal n890 : std_logic;
+  signal n891 : std_logic_vector (11 downto 0);
+  signal n892 : std_logic_vector (11 downto 0);
+  signal n893 : std_logic_vector (11 downto 0);
+  signal n894 : std_logic_vector (11 downto 0);
+  signal n895 : std_logic_vector (11 downto 0);
+  signal n896 : std_logic_vector (11 downto 0);
+  signal n897 : std_logic_vector (11 downto 0);
+  signal n898 : std_logic_vector (11 downto 0);
+  signal n899 : std_logic_vector (11 downto 0);
+  signal n900 : std_logic_vector (11 downto 0);
+  signal n901 : std_logic_vector (11 downto 0);
+  signal n902 : std_logic_vector (11 downto 0);
+  signal n903 : std_logic_vector (11 downto 0);
+  signal n904 : std_logic_vector (11 downto 0);
+  signal n905 : std_logic_vector (11 downto 0);
+  signal n906 : std_logic_vector (11 downto 0);
+  signal n907 : std_logic_vector (95 downto 0);
+  signal n908 : std_logic;
+  signal n909 : std_logic;
+  signal n910 : std_logic;
+  signal n911 : std_logic;
+  signal n912 : std_logic;
+  signal n913 : std_logic;
+  signal n914 : std_logic;
+  signal n915 : std_logic;
+  signal n916 : std_logic;
+  signal n917 : std_logic;
+  signal n918 : std_logic;
+  signal n919 : std_logic;
+  signal n920 : std_logic;
+  signal n921 : std_logic;
+  signal n922 : std_logic;
+  signal n923 : std_logic;
+  signal n924 : std_logic;
+  signal n925 : std_logic;
+  signal n926 : std_logic_vector (11 downto 0);
+  signal n927 : std_logic_vector (11 downto 0);
+  signal n928 : std_logic_vector (11 downto 0);
+  signal n929 : std_logic_vector (11 downto 0);
+  signal n930 : std_logic_vector (11 downto 0);
+  signal n931 : std_logic_vector (11 downto 0);
+  signal n932 : std_logic_vector (11 downto 0);
+  signal n933 : std_logic_vector (11 downto 0);
+  signal n934 : std_logic_vector (11 downto 0);
+  signal n935 : std_logic_vector (11 downto 0);
+  signal n936 : std_logic_vector (11 downto 0);
+  signal n937 : std_logic_vector (11 downto 0);
+  signal n938 : std_logic_vector (11 downto 0);
+  signal n939 : std_logic_vector (11 downto 0);
+  signal n940 : std_logic_vector (11 downto 0);
+  signal n941 : std_logic_vector (11 downto 0);
+  signal n942 : std_logic_vector (95 downto 0);
+  signal n943 : std_logic;
+  signal n944 : std_logic;
+  signal n945 : std_logic;
+  signal n946 : std_logic;
+  signal n947 : std_logic;
+  signal n948 : std_logic;
+  signal n949 : std_logic;
+  signal n950 : std_logic;
+  signal n951 : std_logic;
+  signal n952 : std_logic;
+  signal n953 : std_logic;
+  signal n954 : std_logic;
+  signal n955 : std_logic;
+  signal n956 : std_logic;
+  signal n957 : std_logic;
+  signal n958 : std_logic;
+  signal n959 : std_logic;
+  signal n960 : std_logic;
+  signal n961 : std_logic_vector (11 downto 0);
+  signal n962 : std_logic_vector (11 downto 0);
+  signal n963 : std_logic_vector (11 downto 0);
+  signal n964 : std_logic_vector (11 downto 0);
+  signal n965 : std_logic_vector (11 downto 0);
+  signal n966 : std_logic_vector (11 downto 0);
+  signal n967 : std_logic_vector (11 downto 0);
+  signal n968 : std_logic_vector (11 downto 0);
+  signal n969 : std_logic_vector (11 downto 0);
+  signal n970 : std_logic_vector (11 downto 0);
+  signal n971 : std_logic_vector (11 downto 0);
+  signal n972 : std_logic_vector (11 downto 0);
+  signal n973 : std_logic_vector (11 downto 0);
+  signal n974 : std_logic_vector (11 downto 0);
+  signal n975 : std_logic_vector (11 downto 0);
+  signal n976 : std_logic_vector (11 downto 0);
+  signal n977 : std_logic_vector (95 downto 0);
+  signal n978 : std_logic;
+  signal n979 : std_logic;
+  signal n980 : std_logic;
+  signal n981 : std_logic;
+  signal n982 : std_logic;
+  signal n983 : std_logic;
+  signal n984 : std_logic;
+  signal n985 : std_logic;
+  signal n986 : std_logic;
+  signal n987 : std_logic;
+  signal n988 : std_logic;
+  signal n989 : std_logic;
+  signal n990 : std_logic;
+  signal n991 : std_logic;
+  signal n992 : std_logic;
+  signal n993 : std_logic;
+  signal n994 : std_logic;
+  signal n995 : std_logic;
+  signal n996 : std_logic_vector (11 downto 0);
+  signal n997 : std_logic_vector (11 downto 0);
+  signal n998 : std_logic_vector (11 downto 0);
+  signal n999 : std_logic_vector (11 downto 0);
+  signal n1000 : std_logic_vector (11 downto 0);
+  signal n1001 : std_logic_vector (11 downto 0);
+  signal n1002 : std_logic_vector (11 downto 0);
+  signal n1003 : std_logic_vector (11 downto 0);
+  signal n1004 : std_logic_vector (11 downto 0);
+  signal n1005 : std_logic_vector (11 downto 0);
+  signal n1006 : std_logic_vector (11 downto 0);
+  signal n1007 : std_logic_vector (11 downto 0);
+  signal n1008 : std_logic_vector (11 downto 0);
+  signal n1009 : std_logic_vector (11 downto 0);
+  signal n1010 : std_logic_vector (11 downto 0);
+  signal n1011 : std_logic_vector (11 downto 0);
+  signal n1012 : std_logic_vector (95 downto 0);
+  signal n1013 : std_logic;
+  signal n1014 : std_logic;
+  signal n1015 : std_logic;
+  signal n1016 : std_logic;
+  signal n1017 : std_logic;
+  signal n1018 : std_logic;
+  signal n1019 : std_logic;
+  signal n1020 : std_logic;
+  signal n1021 : std_logic;
+  signal n1022 : std_logic;
+  signal n1023 : std_logic;
+  signal n1024 : std_logic;
+  signal n1025 : std_logic;
+  signal n1026 : std_logic;
+  signal n1027 : std_logic;
+  signal n1028 : std_logic;
+  signal n1029 : std_logic;
+  signal n1030 : std_logic;
+  signal n1031 : std_logic_vector (7 downto 0);
+  signal n1032 : std_logic;
+  signal n1033 : std_logic_vector (7 downto 0);
+  signal n1034 : std_logic_vector (7 downto 0);
+  signal n1035 : std_logic;
+  signal n1036 : std_logic_vector (7 downto 0);
+  signal n1037 : std_logic_vector (7 downto 0);
+  signal n1038 : std_logic;
+  signal n1039 : std_logic_vector (7 downto 0);
+  signal n1040 : std_logic_vector (7 downto 0);
+  signal n1041 : std_logic;
+  signal n1042 : std_logic_vector (7 downto 0);
+  signal n1043 : std_logic_vector (7 downto 0);
+  signal n1044 : std_logic;
+  signal n1045 : std_logic_vector (7 downto 0);
+  signal n1046 : std_logic_vector (7 downto 0);
+  signal n1047 : std_logic;
+  signal n1048 : std_logic_vector (7 downto 0);
+  signal n1049 : std_logic_vector (7 downto 0);
+  signal n1050 : std_logic;
+  signal n1051 : std_logic_vector (7 downto 0);
+  signal n1052 : std_logic_vector (7 downto 0);
+  signal n1053 : std_logic;
+  signal n1054 : std_logic_vector (7 downto 0);
+  signal n1055 : std_logic_vector (63 downto 0);
+begin
+  scl <= n245_c_oport;
+  sda <= n246_c_oport;
+  adc_spi_sclk <= n861;
+  adc_spi_mosi <= n862;
+  adc_spi_cs_n <= cs_control;
+  voc_data <= n864;
+  aq_data <= n866;
+  pressure_data <= n867;
+  temp_data <= n868;
+  flow_data <= n870;
+  sensor_status <= n871;
+  error_flags <= n872;
+  -- ../src/hdl/sensors/sensor_hub.vhd:13:9
+  n245_c_oport <= "ZZZZ"; -- (inout - port)
+  n245_c_o <= scl; -- (inout - read)
+  -- ../src/hdl/sensors/sensor_hub.vhd:14:9
+  n246_c_oport <= "ZZZZ"; -- (inout - port)
+  n246_c_o <= sda; -- (inout - read)
+  -- ../src/hdl/sensors/sensor_hub.vhd:53:12
+  voc_buffer <= n838; -- (isignal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:54:12
+  aq_buffer <= n839; -- (isignal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:55:12
+  pressure_buffer <= n840; -- (isignal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:56:12
+  temp_buffer <= n841; -- (isignal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:57:12
+  voc_data_internal <= n842; -- (signal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:58:12
+  aq_data_internal <= n843; -- (signal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:62:12
+  cal_storage <= n847; -- (isignal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:73:12
+  current_state <= n848; -- (signal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:75:12
+  buffer_index <= n851; -- (isignal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:78:12
+  spi_active <= n852; -- (isignal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:79:12
+  spi_done <= n853; -- (isignal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:80:12
+  spi_counter <= n854; -- (isignal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:81:12
+  spi_data_out <= n855; -- (signal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:82:12
+  spi_data_in <= n856; -- (signal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:88:12
+  sample_timeout <= n859; -- (isignal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:89:12
+  adc_valid <= n860; -- (isignal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:101:12
+  cs_control <= n836; -- (signal)
+  -- ../src/hdl/sensors/sensor_hub.vhd:127:35
+  n277 <= cal_wr and cal_mode;
+  -- ../src/hdl/sensors/sensor_hub.vhd:128:43
+  n279 <= '1' when unsigned (cal_addr) < unsigned'("00001000") else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:37
+  n281 <= cal_addr (2 downto 0);  --  trunc
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:37
+  n283 <= std_logic_vector (unsigned'("111") - unsigned (n281));
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:89
+  n285 <= cal_data (7 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:127:17
+  n288 <= n279 and n277;
+  -- ../src/hdl/sensors/sensor_hub.vhd:135:21
+  n290 <= '1' when current_state = "000" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:40
+  n293 <= std_logic_vector (unsigned'("111") - unsigned (buffer_index));
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:89
+  n295 <= spi_data_in (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:141:25
+  n297 <= voc_buffer when adc_valid = '0' else n907;
+  -- ../src/hdl/sensors/sensor_hub.vhd:141:25
+  n299 <= current_state when adc_valid = '0' else "010";
+  -- ../src/hdl/sensors/sensor_hub.vhd:140:21
+  n301 <= '1' when current_state = "001" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:39
+  n304 <= std_logic_vector (unsigned'("111") - unsigned (buffer_index));
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:88
+  n306 <= spi_data_in (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:147:25
+  n308 <= aq_buffer when adc_valid = '0' else n942;
+  -- ../src/hdl/sensors/sensor_hub.vhd:147:25
+  n310 <= current_state when adc_valid = '0' else "011";
+  -- ../src/hdl/sensors/sensor_hub.vhd:146:21
+  n312 <= '1' when current_state = "010" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:45
+  n315 <= std_logic_vector (unsigned'("111") - unsigned (buffer_index));
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:94
+  n317 <= spi_data_in (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:153:25
+  n319 <= pressure_buffer when adc_valid = '0' else n977;
+  -- ../src/hdl/sensors/sensor_hub.vhd:153:25
+  n321 <= current_state when adc_valid = '0' else "100";
+  -- ../src/hdl/sensors/sensor_hub.vhd:152:21
+  n323 <= '1' when current_state = "011" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:41
+  n326 <= std_logic_vector (unsigned'("111") - unsigned (buffer_index));
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:90
+  n328 <= spi_data_in (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:159:25
+  n330 <= temp_buffer when adc_valid = '0' else n1012;
+  -- ../src/hdl/sensors/sensor_hub.vhd:159:25
+  n332 <= current_state when adc_valid = '0' else "101";
+  -- ../src/hdl/sensors/sensor_hub.vhd:158:21
+  n338 <= '1' when current_state = "100" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:61
+  n339 <= voc_buffer (95 downto 84);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:78
+  n340 <= cal_storage (63 downto 56);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n341 <= "00000000" & n339;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n342 <= "000000000000" & n340;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n343 <= std_logic_vector (resize (unsigned (n341) * unsigned (n342), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:48
+  n345 <= std_logic_vector (unsigned'("00000000000000000000") + unsigned (n343));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:61
+  n347 <= voc_buffer (83 downto 72);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:78
+  n348 <= cal_storage (63 downto 56);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n349 <= "00000000" & n347;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n350 <= "000000000000" & n348;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n351 <= std_logic_vector (resize (unsigned (n349) * unsigned (n350), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:48
+  n352 <= std_logic_vector (unsigned (n345) + unsigned (n351));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:61
+  n353 <= voc_buffer (71 downto 60);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:78
+  n354 <= cal_storage (63 downto 56);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n355 <= "00000000" & n353;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n356 <= "000000000000" & n354;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n357 <= std_logic_vector (resize (unsigned (n355) * unsigned (n356), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:48
+  n358 <= std_logic_vector (unsigned (n352) + unsigned (n357));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:61
+  n359 <= voc_buffer (59 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:78
+  n360 <= cal_storage (63 downto 56);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n361 <= "00000000" & n359;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n362 <= "000000000000" & n360;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n363 <= std_logic_vector (resize (unsigned (n361) * unsigned (n362), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:48
+  n364 <= std_logic_vector (unsigned (n358) + unsigned (n363));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:61
+  n365 <= voc_buffer (47 downto 36);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:78
+  n366 <= cal_storage (63 downto 56);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n367 <= "00000000" & n365;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n368 <= "000000000000" & n366;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n369 <= std_logic_vector (resize (unsigned (n367) * unsigned (n368), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:48
+  n370 <= std_logic_vector (unsigned (n364) + unsigned (n369));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:61
+  n371 <= voc_buffer (35 downto 24);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:78
+  n372 <= cal_storage (63 downto 56);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n373 <= "00000000" & n371;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n374 <= "000000000000" & n372;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n375 <= std_logic_vector (resize (unsigned (n373) * unsigned (n374), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:48
+  n376 <= std_logic_vector (unsigned (n370) + unsigned (n375));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:61
+  n377 <= voc_buffer (23 downto 12);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:78
+  n378 <= cal_storage (63 downto 56);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n379 <= "00000000" & n377;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n380 <= "000000000000" & n378;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n381 <= std_logic_vector (resize (unsigned (n379) * unsigned (n380), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:48
+  n382 <= std_logic_vector (unsigned (n376) + unsigned (n381));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:61
+  n383 <= voc_buffer (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:78
+  n384 <= cal_storage (63 downto 56);
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n385 <= "00000000" & n383;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n386 <= "000000000000" & n384;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:65
+  n387 <= std_logic_vector (resize (unsigned (n385) * unsigned (n386), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:170:48
+  n388 <= std_logic_vector (unsigned (n382) + unsigned (n387));
+  -- ../src/hdl/sensors/sensor_hub.vhd:172:77
+  n389 <= n388 (19 downto 3);
+  -- ../src/hdl/sensors/sensor_hub.vhd:172:63
+  n390 <= n389 (11 downto 0);  --  trunc
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:60
+  n391 <= aq_buffer (95 downto 84);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:77
+  n392 <= cal_storage (55 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n393 <= "00000000" & n391;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n394 <= "000000000000" & n392;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n395 <= std_logic_vector (resize (unsigned (n393) * unsigned (n394), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:48
+  n397 <= std_logic_vector (unsigned'("00000000000000000000") + unsigned (n395));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:60
+  n399 <= aq_buffer (83 downto 72);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:77
+  n400 <= cal_storage (55 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n401 <= "00000000" & n399;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n402 <= "000000000000" & n400;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n403 <= std_logic_vector (resize (unsigned (n401) * unsigned (n402), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:48
+  n404 <= std_logic_vector (unsigned (n397) + unsigned (n403));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:60
+  n405 <= aq_buffer (71 downto 60);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:77
+  n406 <= cal_storage (55 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n407 <= "00000000" & n405;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n408 <= "000000000000" & n406;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n409 <= std_logic_vector (resize (unsigned (n407) * unsigned (n408), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:48
+  n410 <= std_logic_vector (unsigned (n404) + unsigned (n409));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:60
+  n411 <= aq_buffer (59 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:77
+  n412 <= cal_storage (55 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n413 <= "00000000" & n411;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n414 <= "000000000000" & n412;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n415 <= std_logic_vector (resize (unsigned (n413) * unsigned (n414), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:48
+  n416 <= std_logic_vector (unsigned (n410) + unsigned (n415));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:60
+  n417 <= aq_buffer (47 downto 36);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:77
+  n418 <= cal_storage (55 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n419 <= "00000000" & n417;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n420 <= "000000000000" & n418;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n421 <= std_logic_vector (resize (unsigned (n419) * unsigned (n420), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:48
+  n422 <= std_logic_vector (unsigned (n416) + unsigned (n421));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:60
+  n423 <= aq_buffer (35 downto 24);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:77
+  n424 <= cal_storage (55 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n425 <= "00000000" & n423;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n426 <= "000000000000" & n424;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n427 <= std_logic_vector (resize (unsigned (n425) * unsigned (n426), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:48
+  n428 <= std_logic_vector (unsigned (n422) + unsigned (n427));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:60
+  n429 <= aq_buffer (23 downto 12);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:77
+  n430 <= cal_storage (55 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n431 <= "00000000" & n429;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n432 <= "000000000000" & n430;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n433 <= std_logic_vector (resize (unsigned (n431) * unsigned (n432), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:48
+  n434 <= std_logic_vector (unsigned (n428) + unsigned (n433));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:60
+  n435 <= aq_buffer (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:77
+  n436 <= cal_storage (55 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n437 <= "00000000" & n435;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n438 <= "000000000000" & n436;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:64
+  n439 <= std_logic_vector (resize (unsigned (n437) * unsigned (n438), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:177:48
+  n440 <= std_logic_vector (unsigned (n434) + unsigned (n439));
+  -- ../src/hdl/sensors/sensor_hub.vhd:179:76
+  n441 <= n440 (19 downto 3);
+  -- ../src/hdl/sensors/sensor_hub.vhd:179:62
+  n442 <= n441 (11 downto 0);  --  trunc
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:66
+  n443 <= pressure_buffer (95 downto 84);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:83
+  n444 <= cal_storage (47 downto 40);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n445 <= "00000000" & n443;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n446 <= "000000000000" & n444;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n447 <= std_logic_vector (resize (unsigned (n445) * unsigned (n446), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:48
+  n449 <= std_logic_vector (unsigned'("00000000000000000000") + unsigned (n447));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:66
+  n451 <= pressure_buffer (83 downto 72);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:83
+  n452 <= cal_storage (47 downto 40);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n453 <= "00000000" & n451;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n454 <= "000000000000" & n452;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n455 <= std_logic_vector (resize (unsigned (n453) * unsigned (n454), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:48
+  n456 <= std_logic_vector (unsigned (n449) + unsigned (n455));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:66
+  n457 <= pressure_buffer (71 downto 60);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:83
+  n458 <= cal_storage (47 downto 40);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n459 <= "00000000" & n457;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n460 <= "000000000000" & n458;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n461 <= std_logic_vector (resize (unsigned (n459) * unsigned (n460), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:48
+  n462 <= std_logic_vector (unsigned (n456) + unsigned (n461));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:66
+  n463 <= pressure_buffer (59 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:83
+  n464 <= cal_storage (47 downto 40);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n465 <= "00000000" & n463;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n466 <= "000000000000" & n464;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n467 <= std_logic_vector (resize (unsigned (n465) * unsigned (n466), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:48
+  n468 <= std_logic_vector (unsigned (n462) + unsigned (n467));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:66
+  n469 <= pressure_buffer (47 downto 36);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:83
+  n470 <= cal_storage (47 downto 40);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n471 <= "00000000" & n469;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n472 <= "000000000000" & n470;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n473 <= std_logic_vector (resize (unsigned (n471) * unsigned (n472), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:48
+  n474 <= std_logic_vector (unsigned (n468) + unsigned (n473));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:66
+  n475 <= pressure_buffer (35 downto 24);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:83
+  n476 <= cal_storage (47 downto 40);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n477 <= "00000000" & n475;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n478 <= "000000000000" & n476;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n479 <= std_logic_vector (resize (unsigned (n477) * unsigned (n478), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:48
+  n480 <= std_logic_vector (unsigned (n474) + unsigned (n479));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:66
+  n481 <= pressure_buffer (23 downto 12);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:83
+  n482 <= cal_storage (47 downto 40);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n483 <= "00000000" & n481;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n484 <= "000000000000" & n482;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n485 <= std_logic_vector (resize (unsigned (n483) * unsigned (n484), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:48
+  n486 <= std_logic_vector (unsigned (n480) + unsigned (n485));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:66
+  n487 <= pressure_buffer (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:83
+  n488 <= cal_storage (47 downto 40);
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n489 <= "00000000" & n487;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n490 <= "000000000000" & n488;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:70
+  n491 <= std_logic_vector (resize (unsigned (n489) * unsigned (n490), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:184:48
+  n492 <= std_logic_vector (unsigned (n486) + unsigned (n491));
+  -- ../src/hdl/sensors/sensor_hub.vhd:186:73
+  n493 <= n492 (19 downto 3);
+  -- ../src/hdl/sensors/sensor_hub.vhd:186:59
+  n494 <= n493 (11 downto 0);  --  trunc
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:62
+  n495 <= temp_buffer (95 downto 84);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:79
+  n496 <= cal_storage (39 downto 32);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n497 <= "00000000" & n495;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n498 <= "000000000000" & n496;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n499 <= std_logic_vector (resize (unsigned (n497) * unsigned (n498), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:48
+  n501 <= std_logic_vector (unsigned'("00000000000000000000") + unsigned (n499));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:62
+  n503 <= temp_buffer (83 downto 72);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:79
+  n504 <= cal_storage (39 downto 32);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n505 <= "00000000" & n503;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n506 <= "000000000000" & n504;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n507 <= std_logic_vector (resize (unsigned (n505) * unsigned (n506), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:48
+  n508 <= std_logic_vector (unsigned (n501) + unsigned (n507));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:62
+  n509 <= temp_buffer (71 downto 60);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:79
+  n510 <= cal_storage (39 downto 32);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n511 <= "00000000" & n509;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n512 <= "000000000000" & n510;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n513 <= std_logic_vector (resize (unsigned (n511) * unsigned (n512), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:48
+  n514 <= std_logic_vector (unsigned (n508) + unsigned (n513));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:62
+  n515 <= temp_buffer (59 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:79
+  n516 <= cal_storage (39 downto 32);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n517 <= "00000000" & n515;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n518 <= "000000000000" & n516;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n519 <= std_logic_vector (resize (unsigned (n517) * unsigned (n518), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:48
+  n520 <= std_logic_vector (unsigned (n514) + unsigned (n519));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:62
+  n521 <= temp_buffer (47 downto 36);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:79
+  n522 <= cal_storage (39 downto 32);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n523 <= "00000000" & n521;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n524 <= "000000000000" & n522;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n525 <= std_logic_vector (resize (unsigned (n523) * unsigned (n524), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:48
+  n526 <= std_logic_vector (unsigned (n520) + unsigned (n525));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:62
+  n527 <= temp_buffer (35 downto 24);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:79
+  n528 <= cal_storage (39 downto 32);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n529 <= "00000000" & n527;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n530 <= "000000000000" & n528;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n531 <= std_logic_vector (resize (unsigned (n529) * unsigned (n530), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:48
+  n532 <= std_logic_vector (unsigned (n526) + unsigned (n531));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:62
+  n533 <= temp_buffer (23 downto 12);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:79
+  n534 <= cal_storage (39 downto 32);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n535 <= "00000000" & n533;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n536 <= "000000000000" & n534;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n537 <= std_logic_vector (resize (unsigned (n535) * unsigned (n536), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:48
+  n538 <= std_logic_vector (unsigned (n532) + unsigned (n537));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:62
+  n539 <= temp_buffer (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:79
+  n540 <= cal_storage (39 downto 32);
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n541 <= "00000000" & n539;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n542 <= "000000000000" & n540;  --  uext
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:66
+  n543 <= std_logic_vector (resize (unsigned (n541) * unsigned (n542), 20));
+  -- ../src/hdl/sensors/sensor_hub.vhd:191:48
+  n544 <= std_logic_vector (unsigned (n538) + unsigned (n543));
+  -- ../src/hdl/sensors/sensor_hub.vhd:193:69
+  n545 <= n544 (19 downto 3);
+  -- ../src/hdl/sensors/sensor_hub.vhd:193:55
+  n546 <= n545 (11 downto 0);  --  trunc
+  -- ../src/hdl/sensors/sensor_hub.vhd:196:41
+  n548 <= '1' when buffer_index = "111" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:199:58
+  n550 <= std_logic_vector (unsigned (buffer_index) + unsigned'("001"));
+  -- ../src/hdl/sensors/sensor_hub.vhd:196:25
+  n552 <= n550 when n548 = '0' else "000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:166:21
+  n554 <= '1' when current_state = "101" else '0';
+  n555 <= n554 & n338 & n323 & n312 & n301 & n290;
+  -- ../src/hdl/sensors/sensor_hub.vhd:134:17
+  with n555 select n557 <=
+    n494 when "100000",
+    n867 when "010000",
+    n867 when "001000",
+    n867 when "000100",
+    n867 when "000010",
+    n867 when "000001",
+    (11 downto 0 => 'X') when others;
+  -- ../src/hdl/sensors/sensor_hub.vhd:134:17
+  with n555 select n559 <=
+    n546 when "100000",
+    n868 when "010000",
+    n868 when "001000",
+    n868 when "000100",
+    n868 when "000010",
+    n868 when "000001",
+    (11 downto 0 => 'X') when others;
+  -- ../src/hdl/sensors/sensor_hub.vhd:134:17
+  with n555 select n561 <=
+    voc_buffer when "100000",
+    voc_buffer when "010000",
+    voc_buffer when "001000",
+    voc_buffer when "000100",
+    n297 when "000010",
+    voc_buffer when "000001",
+    (95 downto 0 => 'X') when others;
+  -- ../src/hdl/sensors/sensor_hub.vhd:134:17
+  with n555 select n563 <=
+    aq_buffer when "100000",
+    aq_buffer when "010000",
+    aq_buffer when "001000",
+    n308 when "000100",
+    aq_buffer when "000010",
+    aq_buffer when "000001",
+    (95 downto 0 => 'X') when others;
+  -- ../src/hdl/sensors/sensor_hub.vhd:134:17
+  with n555 select n565 <=
+    pressure_buffer when "100000",
+    pressure_buffer when "010000",
+    n319 when "001000",
+    pressure_buffer when "000100",
+    pressure_buffer when "000010",
+    pressure_buffer when "000001",
+    (95 downto 0 => 'X') when others;
+  -- ../src/hdl/sensors/sensor_hub.vhd:134:17
+  with n555 select n567 <=
+    temp_buffer when "100000",
+    n330 when "010000",
+    temp_buffer when "001000",
+    temp_buffer when "000100",
+    temp_buffer when "000010",
+    temp_buffer when "000001",
+    (95 downto 0 => 'X') when others;
+  -- ../src/hdl/sensors/sensor_hub.vhd:134:17
+  with n555 select n569 <=
+    n390 when "100000",
+    voc_data_internal when "010000",
+    voc_data_internal when "001000",
+    voc_data_internal when "000100",
+    voc_data_internal when "000010",
+    voc_data_internal when "000001",
+    (11 downto 0 => 'X') when others;
+  -- ../src/hdl/sensors/sensor_hub.vhd:134:17
+  with n555 select n571 <=
+    n442 when "100000",
+    aq_data_internal when "010000",
+    aq_data_internal when "001000",
+    aq_data_internal when "000100",
+    aq_data_internal when "000010",
+    aq_data_internal when "000001",
+    (11 downto 0 => 'X') when others;
+  -- ../src/hdl/sensors/sensor_hub.vhd:134:17
+  with n555 select n575 <=
+    "000" when "100000",
+    n332 when "010000",
+    n321 when "001000",
+    n310 when "000100",
+    n299 when "000010",
+    "001" when "000001",
+    "XXX" when others;
+  -- ../src/hdl/sensors/sensor_hub.vhd:134:17
+  with n555 select n577 <=
+    n552 when "100000",
+    buffer_index when "010000",
+    buffer_index when "001000",
+    buffer_index when "000100",
+    buffer_index when "000010",
+    buffer_index when "000001",
+    "XXX" when others;
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n592 <= n557 when rst = '0' else "000000000000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n594 <= n559 when rst = '0' else "000000000000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n597 <= n561 when rst = '0' else voc_buffer;
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n598 <= n563 when rst = '0' else aq_buffer;
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n599 <= n565 when rst = '0' else pressure_buffer;
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n600 <= n567 when rst = '0' else temp_buffer;
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n601 <= n569 when rst = '0' else voc_data_internal;
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n602 <= n571 when rst = '0' else aq_data_internal;
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n605 <= n575 when rst = '0' else "000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n609 <= n577 when rst = '0' else "000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:94:22
+  n643 <= '1' when current_state = "001" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:95:22
+  n645 <= '1' when current_state = "010" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:94:35
+  n646 <= n643 or n645;
+  -- ../src/hdl/sensors/sensor_hub.vhd:96:22
+  n648 <= '1' when current_state = "011" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:95:34
+  n649 <= n646 or n648;
+  -- ../src/hdl/sensors/sensor_hub.vhd:97:22
+  n651 <= '1' when current_state = "100" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:96:40
+  n652 <= n649 or n651;
+  -- ../src/hdl/sensors/sensor_hub.vhd:227:35
+  n653 <= not spi_active;
+  -- ../src/hdl/sensors/sensor_hub.vhd:233:40
+  n655 <= '1' when unsigned (spi_counter) < unsigned'("10000") else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:234:56
+  n657 <= std_logic_vector (unsigned (spi_counter) + unsigned'("00001"));
+  -- ../src/hdl/sensors/sensor_hub.vhd:237:43
+  n658 <= spi_counter (0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:237:47
+  n659 <= not n658;
+  -- ../src/hdl/sensors/sensor_hub.vhd:240:61
+  n660 <= spi_data_out (15);
+  -- ../src/hdl/sensors/sensor_hub.vhd:241:61
+  n661 <= spi_data_out (14 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:241:75
+  n663 <= n661 & '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:245:59
+  n664 <= spi_data_in (14 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:245:73
+  n665 <= n664 & adc_spi_miso;
+  -- ../src/hdl/sensors/sensor_hub.vhd:237:29
+  n668 <= '1' when n659 = '0' else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n669 <= n862 when n687 = '0' else n660;
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n670 <= spi_data_out when n692 = '0' else n663;
+  -- ../src/hdl/sensors/sensor_hub.vhd:237:29
+  n671 <= n665 when n659 = '0' else spi_data_in;
+  -- ../src/hdl/sensors/sensor_hub.vhd:233:25
+  n673 <= '1' when n655 = '0' else n668;
+  -- ../src/hdl/sensors/sensor_hub.vhd:233:25
+  n674 <= n659 and n655;
+  -- ../src/hdl/sensors/sensor_hub.vhd:233:25
+  n676 <= '0' when n655 = '0' else spi_active;
+  -- ../src/hdl/sensors/sensor_hub.vhd:233:25
+  n679 <= '1' when n655 = '0' else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n680 <= spi_counter when n691 = '0' else n657;
+  -- ../src/hdl/sensors/sensor_hub.vhd:233:25
+  n681 <= n659 and n655;
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n682 <= spi_data_in when n693 = '0' else n671;
+  -- ../src/hdl/sensors/sensor_hub.vhd:233:25
+  n685 <= '1' when n655 = '0' else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n686 <= n861 when spi_active = '0' else n673;
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n687 <= n674 and spi_active;
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n688 <= spi_active when spi_active = '0' else n676;
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n690 <= '0' when spi_active = '0' else n679;
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n691 <= n655 and spi_active;
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n692 <= n681 and spi_active;
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n693 <= n655 and spi_active;
+  -- ../src/hdl/sensors/sensor_hub.vhd:231:21
+  n695 <= '0' when spi_active = '0' else n685;
+  -- ../src/hdl/sensors/sensor_hub.vhd:227:21
+  n696 <= n686 when n653 = '0' else n861;
+  -- ../src/hdl/sensors/sensor_hub.vhd:227:21
+  n697 <= n669 when n653 = '0' else n862;
+  -- ../src/hdl/sensors/sensor_hub.vhd:227:21
+  n699 <= n688 when n653 = '0' else '1';
+  -- ../src/hdl/sensors/sensor_hub.vhd:227:21
+  n701 <= n690 when n653 = '0' else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:227:21
+  n703 <= n680 when n653 = '0' else "00000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:227:21
+  n705 <= n670 when n653 = '0' else "0000000000000000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:227:21
+  n706 <= n682 when n653 = '0' else spi_data_in;
+  -- ../src/hdl/sensors/sensor_hub.vhd:227:21
+  n708 <= n695 when n653 = '0' else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:225:17
+  n710 <= '1' when n652 = '0' else n696;
+  -- ../src/hdl/sensors/sensor_hub.vhd:225:17
+  n712 <= '0' when n652 = '0' else n697;
+  -- ../src/hdl/sensors/sensor_hub.vhd:225:17
+  n714 <= '0' when n652 = '0' else n699;
+  -- ../src/hdl/sensors/sensor_hub.vhd:225:17
+  n716 <= '0' when n652 = '0' else n701;
+  -- ../src/hdl/sensors/sensor_hub.vhd:225:17
+  n718 <= spi_counter when n652 = '0' else n703;
+  -- ../src/hdl/sensors/sensor_hub.vhd:225:17
+  n719 <= spi_data_out when n652 = '0' else n705;
+  -- ../src/hdl/sensors/sensor_hub.vhd:225:17
+  n720 <= spi_data_in when n652 = '0' else n706;
+  -- ../src/hdl/sensors/sensor_hub.vhd:225:17
+  n722 <= '0' when n652 = '0' else n708;
+  -- ../src/hdl/sensors/sensor_hub.vhd:213:13
+  n725 <= n710 when rst = '0' else '1';
+  -- ../src/hdl/sensors/sensor_hub.vhd:213:13
+  n727 <= n712 when rst = '0' else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:213:13
+  n729 <= n714 when rst = '0' else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:213:13
+  n731 <= n716 when rst = '0' else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:213:13
+  n733 <= n718 when rst = '0' else "00000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:213:13
+  n734 <= n719 when rst = '0' else spi_data_out;
+  -- ../src/hdl/sensors/sensor_hub.vhd:213:13
+  n735 <= n720 when rst = '0' else spi_data_in;
+  -- ../src/hdl/sensors/sensor_hub.vhd:213:13
+  n737 <= n722 when rst = '0' else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:275:48
+  n750 <= '1' when unsigned (voc_data_internal) > unsigned'("100000000000") else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:275:17
+  n755 <= '0' when n750 = '0' else '1';
+  -- ../src/hdl/sensors/sensor_hub.vhd:275:17
+  n756 <= '0' when n750 = '0' else '1';
+  -- ../src/hdl/sensors/sensor_hub.vhd:283:47
+  n758 <= '1' when unsigned (aq_data_internal) > unsigned'("100000000000") else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:283:17
+  n763 <= '0' when n758 = '0' else '1';
+  -- ../src/hdl/sensors/sensor_hub.vhd:283:17
+  n764 <= '0' when n758 = '0' else '1';
+  -- ../src/hdl/sensors/sensor_hub.vhd:94:22
+  n771 <= '1' when current_state = "001" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:95:22
+  n773 <= '1' when current_state = "010" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:94:35
+  n774 <= n771 or n773;
+  -- ../src/hdl/sensors/sensor_hub.vhd:96:22
+  n776 <= '1' when current_state = "011" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:95:34
+  n777 <= n774 or n776;
+  -- ../src/hdl/sensors/sensor_hub.vhd:97:22
+  n779 <= '1' when current_state = "100" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:96:40
+  n780 <= n777 or n779;
+  -- ../src/hdl/sensors/sensor_hub.vhd:293:33
+  n781 <= not spi_done;
+  -- ../src/hdl/sensors/sensor_hub.vhd:294:58
+  n783 <= std_logic_vector (unsigned (sample_timeout) + unsigned'("0000000000000001"));
+  -- ../src/hdl/sensors/sensor_hub.vhd:295:43
+  n785 <= '1' when sample_timeout = "1111111111111111" else '0';
+  n787 <= n872 (7);
+  -- ../src/hdl/sensors/sensor_hub.vhd:292:17
+  n788 <= n787 when n794 = '0' else '1';
+  -- ../src/hdl/sensors/sensor_hub.vhd:293:21
+  n790 <= n785 and n781;
+  -- ../src/hdl/sensors/sensor_hub.vhd:293:21
+  n792 <= "0000000000000000" when n781 = '0' else n783;
+  -- ../src/hdl/sensors/sensor_hub.vhd:292:17
+  n794 <= n790 and n780;
+  -- ../src/hdl/sensors/sensor_hub.vhd:292:17
+  n796 <= "0000000000000000" when n780 = '0' else n792;
+  n797 <= n763 & n755;
+  -- ../src/hdl/sensors/sensor_hub.vhd:269:13
+  n799 <= n797 when rst = '0' else "00";
+  n801 <= n871 (7 downto 2);
+  -- ../src/hdl/sensors/sensor_hub.vhd:269:13
+  n802 <= n801 when rst = '0' else "000000";
+  n803 <= n764 & n756;
+  -- ../src/hdl/sensors/sensor_hub.vhd:269:13
+  n805 <= n803 when rst = '0' else "00";
+  n807 <= n872 (6 downto 2);
+  -- ../src/hdl/sensors/sensor_hub.vhd:269:13
+  n808 <= n807 when rst = '0' else "00000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:269:13
+  n810 <= n788 when rst = '0' else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:269:13
+  n812 <= n796 when rst = '0' else "0000000000000000";
+  n813 <= n802 & n799;
+  n815 <= n810 & n808 & n805;
+  -- ../src/hdl/sensors/sensor_hub.vhd:316:17
+  n821 <= '1' when current_state = "001" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:318:17
+  n823 <= '1' when current_state = "010" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:320:17
+  n825 <= '1' when current_state = "011" else '0';
+  -- ../src/hdl/sensors/sensor_hub.vhd:322:17
+  n827 <= '1' when current_state = "100" else '0';
+  n828 <= n827 & n825 & n823 & n821;
+  -- ../src/hdl/sensors/sensor_hub.vhd:315:13
+  with n828 select n834 <=
+    "11110111" when "1000",
+    "11111011" when "0100",
+    "11111101" when "0010",
+    "11111110" when "0001",
+    "11111111" when others;
+  -- ../src/hdl/sensors/sensor_hub.vhd:312:9
+  n836 <= n834 when rst = '0' else "11111111";
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n838 <= n597;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n839 <= n598;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n840 <= n599;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n841 <= n600;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n842 <= n601;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n843 <= n602;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n844 <= not rst;
+  -- ../src/hdl/sensors/sensor_hub.vhd:112:13
+  n845 <= n844 and n288;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n847 <= n1055;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n848 <= n605;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n851 <= n609;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:212:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n852 <= n729;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:212:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n853 <= n731;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:212:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n854 <= n733;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:212:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n855 <= n734;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:212:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n856 <= n735;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:268:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n859 <= n812;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:212:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n860 <= n737;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:212:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n861 <= n725;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:212:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n862 <= n727;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  n863 <= n864 when rst = '0' else "000000000000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n864 <= n863;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  n865 <= n866 when rst = '0' else "000000000000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n866 <= n865;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n867 <= n592;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n868 <= n594;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  n869 <= n870 when rst = '0' else "00000000";
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n870 <= n869;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:268:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n871 <= n813;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:268:9
+  process (clk)
+  begin
+    if rising_edge (clk) then
+      n872 <= n815;
+    end if;
+  end process;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n873 <= n293 (2);
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n874 <= not n873;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n875 <= n293 (1);
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n876 <= not n875;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n877 <= n874 and n876;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n878 <= n874 and n875;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n879 <= n873 and n876;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n880 <= n873 and n875;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n881 <= n293 (0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n882 <= not n881;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n883 <= n877 and n882;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n884 <= n877 and n881;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n885 <= n878 and n882;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n886 <= n878 and n881;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n887 <= n879 and n882;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n888 <= n879 and n881;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n889 <= n880 and n882;
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n890 <= n880 and n881;
+  n891 <= voc_buffer (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n892 <= n891 when n883 = '0' else n295;
+  -- ../src/hdl/sensors/sensor_hub.vhd:92:14
+  n893 <= voc_buffer (23 downto 12);
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n894 <= n893 when n884 = '0' else n295;
+  -- ../src/hdl/sensors/sensor_hub.vhd:92:14
+  n895 <= voc_buffer (35 downto 24);
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n896 <= n895 when n885 = '0' else n295;
+  n897 <= voc_buffer (47 downto 36);
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n898 <= n897 when n886 = '0' else n295;
+  n899 <= voc_buffer (59 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n900 <= n899 when n887 = '0' else n295;
+  -- ../src/hdl/sensors/sensor_hub.vhd:92:14
+  n901 <= voc_buffer (71 downto 60);
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n902 <= n901 when n888 = '0' else n295;
+  -- ../src/hdl/sensors/sensor_hub.vhd:92:14
+  n903 <= voc_buffer (83 downto 72);
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n904 <= n903 when n889 = '0' else n295;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  n905 <= voc_buffer (95 downto 84);
+  -- ../src/hdl/sensors/sensor_hub.vhd:142:29
+  n906 <= n905 when n890 = '0' else n295;
+  -- ../src/hdl/sensors/sensor_hub.vhd:111:9
+  n907 <= n906 & n904 & n902 & n900 & n898 & n896 & n894 & n892;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n908 <= n304 (2);
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n909 <= not n908;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n910 <= n304 (1);
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n911 <= not n910;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n912 <= n909 and n911;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n913 <= n909 and n910;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n914 <= n908 and n911;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n915 <= n908 and n910;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n916 <= n304 (0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n917 <= not n916;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n918 <= n912 and n917;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n919 <= n912 and n916;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n920 <= n913 and n917;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n921 <= n913 and n916;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n922 <= n914 and n917;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n923 <= n914 and n916;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n924 <= n915 and n917;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n925 <= n915 and n916;
+  n926 <= aq_buffer (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n927 <= n926 when n918 = '0' else n306;
+  n928 <= aq_buffer (23 downto 12);
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n929 <= n928 when n919 = '0' else n306;
+  n930 <= aq_buffer (35 downto 24);
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n931 <= n930 when n920 = '0' else n306;
+  -- ../src/hdl/sensors/sensor_hub.vhd:159:25
+  n932 <= aq_buffer (47 downto 36);
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n933 <= n932 when n921 = '0' else n306;
+  -- ../src/hdl/sensors/sensor_hub.vhd:159:25
+  n934 <= aq_buffer (59 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n935 <= n934 when n922 = '0' else n306;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:41
+  n936 <= aq_buffer (71 downto 60);
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n937 <= n936 when n923 = '0' else n306;
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:39
+  n938 <= aq_buffer (83 downto 72);
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n939 <= n938 when n924 = '0' else n306;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:37
+  n940 <= aq_buffer (95 downto 84);
+  -- ../src/hdl/sensors/sensor_hub.vhd:148:29
+  n941 <= n940 when n925 = '0' else n306;
+  -- ../src/hdl/sensors/sensor_hub.vhd:109:18
+  n942 <= n941 & n939 & n937 & n935 & n933 & n931 & n929 & n927;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n943 <= n315 (2);
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n944 <= not n943;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n945 <= n315 (1);
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n946 <= not n945;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n947 <= n944 and n946;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n948 <= n944 and n945;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n949 <= n943 and n946;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n950 <= n943 and n945;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n951 <= n315 (0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n952 <= not n951;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n953 <= n947 and n952;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n954 <= n947 and n951;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n955 <= n948 and n952;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n956 <= n948 and n951;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n957 <= n949 and n952;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n958 <= n949 and n951;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n959 <= n950 and n952;
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n960 <= n950 and n951;
+  n961 <= pressure_buffer (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n962 <= n961 when n953 = '0' else n317;
+  n963 <= pressure_buffer (23 downto 12);
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n964 <= n963 when n954 = '0' else n317;
+  n965 <= pressure_buffer (35 downto 24);
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n966 <= n965 when n955 = '0' else n317;
+  n967 <= pressure_buffer (47 downto 36);
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n968 <= n967 when n956 = '0' else n317;
+  n969 <= pressure_buffer (59 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n970 <= n969 when n957 = '0' else n317;
+  n971 <= pressure_buffer (71 downto 60);
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n972 <= n971 when n958 = '0' else n317;
+  n973 <= pressure_buffer (83 downto 72);
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n974 <= n973 when n959 = '0' else n317;
+  n975 <= pressure_buffer (95 downto 84);
+  -- ../src/hdl/sensors/sensor_hub.vhd:154:29
+  n976 <= n975 when n960 = '0' else n317;
+  n977 <= n976 & n974 & n972 & n970 & n968 & n966 & n964 & n962;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n978 <= n326 (2);
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n979 <= not n978;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n980 <= n326 (1);
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n981 <= not n980;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n982 <= n979 and n981;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n983 <= n979 and n980;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n984 <= n978 and n981;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n985 <= n978 and n980;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n986 <= n326 (0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n987 <= not n986;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n988 <= n982 and n987;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n989 <= n982 and n986;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n990 <= n983 and n987;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n991 <= n983 and n986;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n992 <= n984 and n987;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n993 <= n984 and n986;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n994 <= n985 and n987;
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n995 <= n985 and n986;
+  n996 <= temp_buffer (11 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n997 <= n996 when n988 = '0' else n328;
+  n998 <= temp_buffer (23 downto 12);
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n999 <= n998 when n989 = '0' else n328;
+  n1000 <= temp_buffer (35 downto 24);
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n1001 <= n1000 when n990 = '0' else n328;
+  n1002 <= temp_buffer (47 downto 36);
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n1003 <= n1002 when n991 = '0' else n328;
+  n1004 <= temp_buffer (59 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n1005 <= n1004 when n992 = '0' else n328;
+  n1006 <= temp_buffer (71 downto 60);
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n1007 <= n1006 when n993 = '0' else n328;
+  n1008 <= temp_buffer (83 downto 72);
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n1009 <= n1008 when n994 = '0' else n328;
+  n1010 <= temp_buffer (95 downto 84);
+  -- ../src/hdl/sensors/sensor_hub.vhd:160:29
+  n1011 <= n1010 when n995 = '0' else n328;
+  n1012 <= n1011 & n1009 & n1007 & n1005 & n1003 & n1001 & n999 & n997;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1013 <= n283 (2);
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1014 <= not n1013;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1015 <= n283 (1);
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1016 <= not n1015;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1017 <= n1014 and n1016;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1018 <= n1014 and n1015;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1019 <= n1013 and n1016;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1020 <= n1013 and n1015;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1021 <= n283 (0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1022 <= not n1021;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1023 <= n1017 and n1022;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1024 <= n1017 and n1021;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1025 <= n1018 and n1022;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1026 <= n1018 and n1021;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1027 <= n1019 and n1022;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1028 <= n1019 and n1021;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1029 <= n1020 and n1022;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1030 <= n1020 and n1021;
+  n1031 <= cal_storage (7 downto 0);
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1032 <= n1023 and n845;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1033 <= n1031 when n1032 = '0' else n285;
+  n1034 <= cal_storage (15 downto 8);
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1035 <= n1024 and n845;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1036 <= n1034 when n1035 = '0' else n285;
+  n1037 <= cal_storage (23 downto 16);
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1038 <= n1025 and n845;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1039 <= n1037 when n1038 = '0' else n285;
+  n1040 <= cal_storage (31 downto 24);
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1041 <= n1026 and n845;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1042 <= n1040 when n1041 = '0' else n285;
+  n1043 <= cal_storage (39 downto 32);
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1044 <= n1027 and n845;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1045 <= n1043 when n1044 = '0' else n285;
+  n1046 <= cal_storage (47 downto 40);
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1047 <= n1028 and n845;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1048 <= n1046 when n1047 = '0' else n285;
+  n1049 <= cal_storage (55 downto 48);
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1050 <= n1029 and n845;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1051 <= n1049 when n1050 = '0' else n285;
+  n1052 <= cal_storage (63 downto 56);
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1053 <= n1030 and n845;
+  -- ../src/hdl/sensors/sensor_hub.vhd:129:25
+  n1054 <= n1052 when n1053 = '0' else n285;
+  n1055 <= n1054 & n1051 & n1048 & n1045 & n1042 & n1039 & n1036 & n1033;
+end rtl;
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity clock_manager is
+  port (
+    clk_in : in std_logic;
+    rst : in std_logic;
+    clk_sys : out std_logic;
+    clk_sample : out std_logic;
+    clk_control : out std_logic;
+    locked : out std_logic);
+end entity clock_manager;
+
+architecture rtl of clock_manager is
+  signal clk_sample_int : std_logic;
+  signal clk_control_int : std_logic;
+  signal n200_counter_sample : std_logic_vector (6 downto 0);
+  signal n200_counter_control : std_logic_vector (13 downto 0);
+  signal n206 : std_logic;
+  signal n207 : std_logic;
+  signal n209 : std_logic_vector (6 downto 0);
+  signal n212 : std_logic_vector (6 downto 0);
+  signal n214 : std_logic;
+  signal n215 : std_logic;
+  signal n217 : std_logic_vector (13 downto 0);
+  signal n220 : std_logic_vector (13 downto 0);
+  signal n238 : std_logic_vector (6 downto 0) := "0000000";
+  signal n239 : std_logic_vector (13 downto 0) := "00000000000000";
+  signal n240 : std_logic;
+  signal n241 : std_logic;
+  signal n242 : std_logic;
+  signal n243 : std_logic;
+  signal n244 : std_logic;
+begin
+  clk_sys <= clk_in;
+  clk_sample <= clk_sample_int;
+  clk_control <= clk_control_int;
+  locked <= n244;
+  -- ../src/hdl/core/clock_manager.vhd:20:12
+  clk_sample_int <= n241; -- (signal)
+  -- ../src/hdl/core/clock_manager.vhd:21:12
+  clk_control_int <= n243; -- (signal)
+  -- ../src/hdl/core/clock_manager.vhd:25:18
+  n200_counter_sample <= n238; -- (isignal)
+  -- ../src/hdl/core/clock_manager.vhd:26:18
+  n200_counter_control <= n239; -- (isignal)
+  -- ../src/hdl/core/clock_manager.vhd:36:31
+  n206 <= '1' when n200_counter_sample = "1100011" else '0';
+  -- ../src/hdl/core/clock_manager.vhd:38:35
+  n207 <= not clk_sample_int;
+  -- ../src/hdl/core/clock_manager.vhd:40:50
+  n209 <= std_logic_vector (unsigned (n200_counter_sample) + unsigned'("0000001"));
+  -- ../src/hdl/core/clock_manager.vhd:36:13
+  n212 <= n209 when n206 = '0' else "0000000";
+  -- ../src/hdl/core/clock_manager.vhd:44:32
+  n214 <= '1' when n200_counter_control = "10011100001111" else '0';
+  -- ../src/hdl/core/clock_manager.vhd:46:36
+  n215 <= not clk_control_int;
+  -- ../src/hdl/core/clock_manager.vhd:48:52
+  n217 <= std_logic_vector (unsigned (n200_counter_control) + unsigned'("00000000000001"));
+  -- ../src/hdl/core/clock_manager.vhd:44:13
+  n220 <= n217 when n214 = '0' else "00000000000000";
+  -- ../src/hdl/core/clock_manager.vhd:34:9
+  process (clk_in, rst)
+  begin
+    if rst = '1' then
+      n238 <= "0000000";
+    elsif rising_edge (clk_in) then
+      n238 <= n212;
+    end if;
+  end process;
+  -- ../src/hdl/core/clock_manager.vhd:34:9
+  process (clk_in, rst)
+  begin
+    if rst = '1' then
+      n239 <= "00000000000000";
+    elsif rising_edge (clk_in) then
+      n239 <= n220;
+    end if;
+  end process;
+  -- ../src/hdl/core/clock_manager.vhd:34:9
+  n240 <= clk_sample_int when n206 = '0' else n207;
+  -- ../src/hdl/core/clock_manager.vhd:34:9
+  process (clk_in, rst)
+  begin
+    if rst = '1' then
+      n241 <= '0';
+    elsif rising_edge (clk_in) then
+      n241 <= n240;
+    end if;
+  end process;
+  -- ../src/hdl/core/clock_manager.vhd:34:9
+  n242 <= clk_control_int when n214 = '0' else n215;
+  -- ../src/hdl/core/clock_manager.vhd:34:9
+  process (clk_in, rst)
+  begin
+    if rst = '1' then
+      n243 <= '0';
+    elsif rising_edge (clk_in) then
+      n243 <= n242;
+    end if;
+  end process;
+  -- ../src/hdl/core/clock_manager.vhd:34:9
+  process (clk_in, rst)
+  begin
+    if rst = '1' then
+      n244 <= '0';
+    elsif rising_edge (clk_in) then
+      n244 <= '1';
+    end if;
+  end process;
+end rtl;
+
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+architecture rtl of nebkiso_top is
+  signal wrap_clk_in: std_logic;
+  signal wrap_ext_rst_n: std_logic;
+  signal wrap_watchdog_error: std_logic;
+  signal wrap_adc_spi_miso: std_logic;
+  subtype typwrap_flow_pulse is std_logic_vector (7 downto 0);
+  signal wrap_flow_pulse: typwrap_flow_pulse;
+  subtype typwrap_operational_mode is std_logic_vector (1 downto 0);
+  signal wrap_operational_mode: typwrap_operational_mode;
+  signal wrap_self_test_req: std_logic;
+  signal wrap_error_reset: std_logic;
+  signal wrap_cal_mode: std_logic;
+  subtype typwrap_cal_data is std_logic_vector (15 downto 0);
+  signal wrap_cal_data: typwrap_cal_data;
+  subtype typwrap_cal_addr is std_logic_vector (7 downto 0);
+  signal wrap_cal_addr: typwrap_cal_addr;
+  signal wrap_cal_wr: std_logic;
+  subtype typwrap_voc_threshold is std_logic_vector (11 downto 0);
+  signal wrap_voc_threshold: typwrap_voc_threshold;
+  subtype typwrap_aq_threshold is std_logic_vector (11 downto 0);
+  signal wrap_aq_threshold: typwrap_aq_threshold;
+  subtype typwrap_press_threshold is std_logic_vector (11 downto 0);
+  signal wrap_press_threshold: typwrap_press_threshold;
+  subtype typwrap_temp_threshold is std_logic_vector (11 downto 0);
+  signal wrap_temp_threshold: typwrap_temp_threshold;
+  subtype typwrap_flow_threshold is std_logic_vector (7 downto 0);
+  signal wrap_flow_threshold: typwrap_flow_threshold;
+  signal wrap_uart_rx: std_logic;
+  signal wrap_watchdog_kick: std_logic;
+  signal wrap_adc_spi_sclk: std_logic;
+  signal wrap_adc_spi_mosi: std_logic;
+  subtype typwrap_adc_spi_cs_n is std_logic_vector (7 downto 0);
+  signal wrap_adc_spi_cs_n: typwrap_adc_spi_cs_n;
+  signal wrap_emergency_stop_a: std_logic;
+  signal wrap_emergency_stop_b: std_logic;
+  signal wrap_ventilation_on_a: std_logic;
+  signal wrap_ventilation_on_b: std_logic;
+  subtype typwrap_chamber_shut_a is std_logic_vector (149 downto 0);
+  signal wrap_chamber_shut_a: typwrap_chamber_shut_a;
+  subtype typwrap_chamber_shut_b is std_logic_vector (149 downto 0);
+  signal wrap_chamber_shut_b: typwrap_chamber_shut_b;
+  signal wrap_uart_tx: std_logic;
+  subtype typwrap_system_status is std_logic_vector (7 downto 0);
+  signal wrap_system_status: typwrap_system_status;
+  subtype typwrap_error_code is std_logic_vector (7 downto 0);
+  signal wrap_error_code: typwrap_error_code;
+  signal wrap_heartbeat: std_logic;
+  signal n4_c_o : std_logic_vector (3 downto 0);
+  signal n4_c_oport : std_logic_vector (3 downto 0);
+  signal n5_c_o : std_logic_vector (3 downto 0);
+  signal n5_c_oport : std_logic_vector (3 downto 0);
+  signal clk_sys : std_logic;
+  signal pll_locked : std_logic;
+  signal rst_n_sync : std_logic;
+  signal system_rst : std_logic;
+  signal safety_rst : std_logic;
+  signal watchdog_counter : std_logic_vector (23 downto 0);
+  signal watchdog_timeout : std_logic;
+  signal voc_data : std_logic_vector (11 downto 0);
+  signal aq_data : std_logic_vector (11 downto 0);
+  signal press_data : std_logic_vector (11 downto 0);
+  signal temp_data : std_logic_vector (11 downto 0);
+  signal flow_data : std_logic_vector (7 downto 0);
+  signal emergency_stop_int_a : std_logic;
+  signal emergency_stop_int_b : std_logic;
+  signal ventilation_on_int_a : std_logic;
+  signal ventilation_on_int_b : std_logic;
+  signal error_status : std_logic_vector (15 downto 0);
+  signal error_counter : std_logic_vector (7 downto 0);
+  signal current_state : std_logic_vector (2 downto 0);
+  signal sensor_status : std_logic_vector (7 downto 0);
+  signal heartbeat_counter : std_logic_vector (24 downto 0);
+  signal heartbeat_int : std_logic;
+  signal system_status_int : std_logic_vector (7 downto 0);
+  signal uart_tx_int : std_logic;
+  signal clock_manager_inst_c_clk_sys : std_logic;
+  signal clock_manager_inst_c_clk_sample : std_logic;
+  signal clock_manager_inst_c_clk_control : std_logic;
+  signal clock_manager_inst_c_locked : std_logic;
+  signal reset_sync_proc_sync_ff : std_logic_vector (2 downto 0);
+  signal n23 : std_logic_vector (1 downto 0);
+  signal n24 : std_logic_vector (2 downto 0);
+  signal n25 : std_logic;
+  signal n26 : std_logic;
+  signal n27 : std_logic;
+  signal n28 : std_logic;
+  signal n29 : std_logic;
+  signal n30 : std_logic;
+  signal n32 : std_logic;
+  signal n34 : std_logic_vector (7 downto 0);
+  signal n35 : std_logic_vector (7 downto 0);
+  signal n38 : std_logic;
+  signal n40 : std_logic_vector (7 downto 0);
+  signal n42 : std_logic;
+  signal n43 : std_logic;
+  signal n46 : std_logic;
+  signal n53 : std_logic_vector (2 downto 0);
+  signal sensor_hub_inst_c_scl : std_logic_vector (3 downto 0);
+  signal sensor_hub_inst_c_sda : std_logic_vector (3 downto 0);
+  signal sensor_hub_inst_c_adc_spi_sclk : std_logic;
+  signal sensor_hub_inst_c_adc_spi_mosi : std_logic;
+  signal sensor_hub_inst_c_adc_spi_cs_n : std_logic_vector (7 downto 0);
+  signal sensor_hub_inst_c_voc_data : std_logic_vector (11 downto 0);
+  signal sensor_hub_inst_c_aq_data : std_logic_vector (11 downto 0);
+  signal sensor_hub_inst_c_pressure_data : std_logic_vector (11 downto 0);
+  signal sensor_hub_inst_c_temp_data : std_logic_vector (11 downto 0);
+  signal sensor_hub_inst_c_flow_data : std_logic_vector (7 downto 0);
+  signal sensor_hub_inst_c_sensor_status : std_logic_vector (7 downto 0);
+  signal sensor_hub_inst_c_error_flags : std_logic_vector (7 downto 0);
+  signal safety_monitor_a_c_emergency_stop : std_logic;
+  signal safety_monitor_a_c_ventilation_on : std_logic;
+  signal safety_monitor_a_c_chamber_shutdown : std_logic_vector (149 downto 0);
+  signal safety_monitor_a_c_safety_status : std_logic_vector (7 downto 0);
+  signal safety_monitor_a_c_error_code : std_logic_vector (7 downto 0);
+  signal safety_monitor_a_c_error_location : std_logic_vector (7 downto 0);
+  signal safety_monitor_b_c_emergency_stop : std_logic;
+  signal safety_monitor_b_c_ventilation_on : std_logic;
+  signal safety_monitor_b_c_chamber_shutdown : std_logic_vector (149 downto 0);
+  signal safety_monitor_b_c_safety_status : std_logic_vector (7 downto 0);
+  signal safety_monitor_b_c_error_code : std_logic_vector (7 downto 0);
+  signal safety_monitor_b_c_error_location : std_logic_vector (7 downto 0);
+  signal uart_ctrl_c_tx : std_logic;
+  signal uart_ctrl_c_tx_busy : std_logic;
+  signal uart_ctrl_c_rx_data : std_logic_vector (7 downto 0);
+  signal uart_ctrl_c_rx_done : std_logic;
+  constant n74 : std_logic_vector (7 downto 0) := "00000000";
+  constant n75 : std_logic := '0';
+  signal n79 : std_logic_vector (23 downto 0);
+  signal n81 : std_logic;
+  signal n83 : std_logic;
+  signal n85 : std_logic;
+  signal n87 : std_logic;
+  signal n88 : std_logic;
+  signal n90 : std_logic_vector (23 downto 0);
+  signal n92 : std_logic;
+  signal n94 : std_logic_vector (23 downto 0);
+  signal n96 : std_logic;
+  signal n103 : std_logic_vector (24 downto 0);
+  signal n104 : std_logic_vector (27 downto 0);
+  signal n106 : std_logic;
+  signal n107 : std_logic;
+  signal n109 : std_logic_vector (24 downto 0);
+  signal n110 : std_logic;
+  signal n112 : std_logic_vector (24 downto 0);
+  signal n114 : std_logic;
+  signal n121 : std_logic;
+  signal n122 : std_logic;
+  signal n124 : std_logic_vector (2 downto 0);
+  signal n126 : std_logic;
+  signal n128 : std_logic;
+  signal n130 : std_logic;
+  signal n131 : std_logic;
+  signal n133 : std_logic_vector (2 downto 0);
+  signal n135 : std_logic_vector (2 downto 0);
+  signal n137 : std_logic;
+  signal n138 : std_logic;
+  signal n140 : std_logic_vector (2 downto 0);
+  signal n142 : std_logic;
+  signal n144 : std_logic;
+  signal n145 : std_logic;
+  signal n147 : std_logic_vector (2 downto 0);
+  signal n149 : std_logic_vector (2 downto 0);
+  signal n151 : std_logic;
+  signal n153 : std_logic;
+  signal n154 : std_logic;
+  signal n156 : std_logic_vector (2 downto 0);
+  signal n158 : std_logic;
+  signal n160 : std_logic;
+  signal n161 : std_logic;
+  signal n163 : std_logic_vector (2 downto 0);
+  signal n165 : std_logic;
+  signal n166 : std_logic_vector (5 downto 0);
+  signal n168 : std_logic_vector (2 downto 0);
+  signal n170 : std_logic_vector (2 downto 0);
+  signal n173 : std_logic;
+  signal n174 : std_logic;
+  signal n175 : std_logic;
+  signal n176 : std_logic;
+  signal n179 : std_logic_vector (2 downto 0);
+  signal n180 : std_logic_vector (5 downto 0);
+  signal n181 : std_logic_vector (6 downto 0);
+  signal n182 : std_logic_vector (7 downto 0);
+  signal n183 : std_logic_vector (7 downto 0);
+  signal n184 : std_logic;
+  signal n185 : std_logic;
+  signal n186 : std_logic;
+  signal n187 : std_logic;
+  signal n188 : std_logic_vector (23 downto 0);
+  signal n189 : std_logic;
+  signal n190 : std_logic_vector (15 downto 0);
+  signal n191 : std_logic_vector (7 downto 0);
+  signal n192 : std_logic_vector (2 downto 0);
+  signal n194 : std_logic_vector (24 downto 0);
+  signal n195 : std_logic;
+begin
+  wrap_clk_in <= clk_in;
+  wrap_ext_rst_n <= ext_rst_n;
+  wrap_watchdog_error <= watchdog_error;
+  wrap_adc_spi_miso <= adc_spi_miso;
+  wrap_flow_pulse <= flow_pulse;
+  wrap_operational_mode <= operational_mode;
+  wrap_self_test_req <= self_test_req;
+  wrap_error_reset <= error_reset;
+  wrap_cal_mode <= cal_mode;
+  wrap_cal_data <= cal_data;
+  wrap_cal_addr <= cal_addr;
+  wrap_cal_wr <= cal_wr;
+  wrap_voc_threshold <= voc_threshold;
+  wrap_aq_threshold <= aq_threshold;
+  wrap_press_threshold <= press_threshold;
+  wrap_temp_threshold <= temp_threshold;
+  wrap_flow_threshold <= flow_threshold;
+  wrap_uart_rx <= uart_rx;
+  watchdog_kick <= wrap_watchdog_kick;
+  adc_spi_sclk <= wrap_adc_spi_sclk;
+  adc_spi_mosi <= wrap_adc_spi_mosi;
+  adc_spi_cs_n <= wrap_adc_spi_cs_n;
+  emergency_stop_a <= wrap_emergency_stop_a;
+  emergency_stop_b <= wrap_emergency_stop_b;
+  ventilation_on_a <= wrap_ventilation_on_a;
+  ventilation_on_b <= wrap_ventilation_on_b;
+  chamber_shut_a <= wrap_chamber_shut_a;
+  chamber_shut_b <= wrap_chamber_shut_b;
+  uart_tx <= wrap_uart_tx;
+  system_status <= wrap_system_status;
+  error_code <= wrap_error_code;
+  heartbeat <= wrap_heartbeat;
+  wrap_watchdog_kick <= n184;
+  wrap_adc_spi_sclk <= sensor_hub_inst_c_adc_spi_sclk;
+  wrap_adc_spi_mosi <= sensor_hub_inst_c_adc_spi_mosi;
+  wrap_adc_spi_cs_n <= sensor_hub_inst_c_adc_spi_cs_n;
+  scl <= n4_c_oport;
+  sda <= n5_c_oport;
+  wrap_emergency_stop_a <= n173;
+  wrap_emergency_stop_b <= n174;
+  wrap_ventilation_on_a <= n175;
+  wrap_ventilation_on_b <= n176;
+  wrap_chamber_shut_a <= safety_monitor_a_c_chamber_shutdown;
+  wrap_chamber_shut_b <= safety_monitor_b_c_chamber_shutdown;
+  wrap_uart_tx <= uart_tx_int;
+  wrap_system_status <= system_status_int;
+  wrap_error_code <= n183;
+  wrap_heartbeat <= heartbeat_int;
+  -- ../src/hdl/core/nebkiso_top.vhd:25:9
+  n4_c_oport <= sensor_hub_inst_c_scl; -- (inout - port)
+  n4_c_o <= scl; -- (inout - read)
+  -- ../src/hdl/core/nebkiso_top.vhd:26:9
+  n5_c_oport <= sensor_hub_inst_c_sda; -- (inout - port)
+  n5_c_o <= sda; -- (inout - read)
+  -- ../src/hdl/core/nebkiso_top.vhd:70:12
+  clk_sys <= clock_manager_inst_c_clk_sys; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:73:12
+  pll_locked <= clock_manager_inst_c_locked; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:76:12
+  rst_n_sync <= n185; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:77:12
+  system_rst <= n186; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:78:12
+  safety_rst <= n187; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:81:12
+  watchdog_counter <= n188; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:82:12
+  watchdog_timeout <= n189; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:85:12
+  voc_data <= sensor_hub_inst_c_voc_data; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:86:12
+  aq_data <= sensor_hub_inst_c_aq_data; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:87:12
+  press_data <= sensor_hub_inst_c_pressure_data; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:88:12
+  temp_data <= sensor_hub_inst_c_temp_data; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:89:12
+  flow_data <= sensor_hub_inst_c_flow_data; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:92:12
+  emergency_stop_int_a <= safety_monitor_a_c_emergency_stop; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:93:12
+  emergency_stop_int_b <= safety_monitor_b_c_emergency_stop; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:94:12
+  ventilation_on_int_a <= safety_monitor_a_c_ventilation_on; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:95:12
+  ventilation_on_int_b <= safety_monitor_b_c_ventilation_on; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:98:12
+  error_status <= n190; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:99:12
+  error_counter <= n191; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:102:12
+  current_state <= n192; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:104:12
+  sensor_status <= sensor_hub_inst_c_sensor_status; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:107:12
+  heartbeat_counter <= n194; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:108:12
+  heartbeat_int <= n195; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:111:12
+  system_status_int <= n182; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:112:12
+  uart_tx_int <= uart_ctrl_c_tx; -- (signal)
+  -- ../src/hdl/core/nebkiso_top.vhd:116:5
+  clock_manager_inst : entity work.clock_manager port map (
+    clk_in => wrap_clk_in,
+    rst => system_rst,
+    clk_sys => clock_manager_inst_c_clk_sys,
+    clk_sample => open,
+    clk_control => open,
+    locked => clock_manager_inst_c_locked);
+  -- ../src/hdl/core/nebkiso_top.vhd:128:18
+  reset_sync_proc_sync_ff <= n53; -- (isignal)
+  -- ../src/hdl/core/nebkiso_top.vhd:131:31
+  n23 <= reset_sync_proc_sync_ff (1 downto 0);
+  -- ../src/hdl/core/nebkiso_top.vhd:131:44
+  n24 <= n23 & wrap_ext_rst_n;
+  -- ../src/hdl/core/nebkiso_top.vhd:132:34
+  n25 <= n24 (2);
+  -- ../src/hdl/core/nebkiso_top.vhd:135:27
+  n26 <= not rst_n_sync;
+  -- ../src/hdl/core/nebkiso_top.vhd:135:33
+  n27 <= n26 or watchdog_timeout;
+  -- ../src/hdl/core/nebkiso_top.vhd:135:59
+  n28 <= n27 or wrap_watchdog_error;
+  -- ../src/hdl/core/nebkiso_top.vhd:136:51
+  n29 <= not pll_locked;
+  -- ../src/hdl/core/nebkiso_top.vhd:136:37
+  n30 <= n28 or n29;
+  -- ../src/hdl/core/nebkiso_top.vhd:142:33
+  n32 <= '1' when error_status /= "0000000000000000" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:143:52
+  n34 <= std_logic_vector (unsigned (error_counter) + unsigned'("00000001"));
+  -- ../src/hdl/core/nebkiso_top.vhd:142:17
+  n35 <= error_counter when n32 = '0' else n34;
+  -- ../src/hdl/core/nebkiso_top.vhd:135:13
+  n38 <= '0' when n30 = '0' else '1';
+  -- ../src/hdl/core/nebkiso_top.vhd:135:13
+  n40 <= n35 when n30 = '0' else "00000000";
+  -- ../src/hdl/core/nebkiso_top.vhd:148:50
+  n42 <= '1' when unsigned (error_counter) > unsigned'("11111111") else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:148:33
+  n43 <= system_rst or n42;
+  -- ../src/hdl/core/nebkiso_top.vhd:148:13
+  n46 <= '0' when n43 = '0' else '1';
+  -- ../src/hdl/core/nebkiso_top.vhd:130:9
+  process (clk_sys)
+  begin
+    if rising_edge (clk_sys) then
+      n53 <= n24;
+    end if;
+  end process;
+  -- ../src/hdl/core/nebkiso_top.vhd:157:5
+  sensor_hub_inst : entity work.sensor_hub port map (
+    clk => clk_sys,
+    rst => system_rst,
+    adc_spi_miso => wrap_adc_spi_miso,
+    cal_mode => wrap_cal_mode,
+    cal_data => wrap_cal_data,
+    cal_addr => wrap_cal_addr,
+    cal_wr => wrap_cal_wr,
+    scl => sensor_hub_inst_c_scl,
+    sda => sensor_hub_inst_c_sda,
+    adc_spi_sclk => sensor_hub_inst_c_adc_spi_sclk,
+    adc_spi_mosi => sensor_hub_inst_c_adc_spi_mosi,
+    adc_spi_cs_n => sensor_hub_inst_c_adc_spi_cs_n,
+    voc_data => sensor_hub_inst_c_voc_data,
+    aq_data => sensor_hub_inst_c_aq_data,
+    pressure_data => sensor_hub_inst_c_pressure_data,
+    temp_data => sensor_hub_inst_c_temp_data,
+    flow_data => sensor_hub_inst_c_flow_data,
+    sensor_status => sensor_hub_inst_c_sensor_status,
+    error_flags => sensor_hub_inst_c_error_flags);
+  -- ../src/hdl/core/nebkiso_top.vhd:181:5
+  safety_monitor_a : entity work.safety_monitor port map (
+    clk => clk_sys,
+    rst => safety_rst,
+    voc_levels => voc_data,
+    air_quality => aq_data,
+    pressure_levels => press_data,
+    temperature => temp_data,
+    flow_sensors => flow_data,
+    voc_threshold => wrap_voc_threshold,
+    aq_threshold => wrap_aq_threshold,
+    press_threshold => wrap_press_threshold,
+    temp_threshold => wrap_temp_threshold,
+    flow_threshold => wrap_flow_threshold,
+    emergency_stop => safety_monitor_a_c_emergency_stop,
+    ventilation_on => safety_monitor_a_c_ventilation_on,
+    chamber_shutdown => safety_monitor_a_c_chamber_shutdown,
+    safety_status => open,
+    error_code => safety_monitor_a_c_error_code,
+    error_location => open);
+  -- ../src/hdl/core/nebkiso_top.vhd:203:5
+  safety_monitor_b : entity work.safety_monitor port map (
+    clk => clk_sys,
+    rst => safety_rst,
+    voc_levels => voc_data,
+    air_quality => aq_data,
+    pressure_levels => press_data,
+    temperature => temp_data,
+    flow_sensors => flow_data,
+    voc_threshold => wrap_voc_threshold,
+    aq_threshold => wrap_aq_threshold,
+    press_threshold => wrap_press_threshold,
+    temp_threshold => wrap_temp_threshold,
+    flow_threshold => wrap_flow_threshold,
+    emergency_stop => safety_monitor_b_c_emergency_stop,
+    ventilation_on => safety_monitor_b_c_ventilation_on,
+    chamber_shutdown => safety_monitor_b_c_chamber_shutdown,
+    safety_status => open,
+    error_code => open,
+    error_location => open);
+  -- ../src/hdl/core/nebkiso_top.vhd:226:5
+  uart_ctrl : entity work.uart_controller_868 port map (
+    clk => clk_sys,
+    rst => system_rst,
+    rx => wrap_uart_rx,
+    tx_data => n74,
+    tx_start => n75,
+    tx => uart_ctrl_c_tx,
+    tx_busy => open,
+    rx_data => open,
+    rx_done => open);
+  -- ../src/hdl/core/nebkiso_top.vhd:248:54
+  n79 <= std_logic_vector (unsigned (watchdog_counter) + unsigned'("000000000000000000000001"));
+  -- ../src/hdl/core/nebkiso_top.vhd:251:37
+  n81 <= '1' when watchdog_counter = "111111111111111111111111" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:251:17
+  n83 <= watchdog_timeout when n81 = '0' else '1';
+  -- ../src/hdl/core/nebkiso_top.vhd:256:34
+  n85 <= '1' when current_state = "011" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:256:61
+  n87 <= '1' when error_status = "0000000000000000" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:256:44
+  n88 <= n87 and n85;
+  -- ../src/hdl/core/nebkiso_top.vhd:256:17
+  n90 <= n79 when n88 = '0' else "000000000000000000000000";
+  -- ../src/hdl/core/nebkiso_top.vhd:256:17
+  n92 <= n83 when n88 = '0' else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:243:13
+  n94 <= n90 when system_rst = '0' else "000000000000000000000000";
+  -- ../src/hdl/core/nebkiso_top.vhd:243:13
+  n96 <= n92 when system_rst = '0' else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:272:56
+  n103 <= std_logic_vector (unsigned (heartbeat_counter) + unsigned'("0000000000000000000000001"));
+  -- ../src/hdl/core/nebkiso_top.vhd:273:38
+  n104 <= "000" & heartbeat_counter;  --  uext
+  -- ../src/hdl/core/nebkiso_top.vhd:273:38
+  n106 <= '1' when n104 = "0001111111111111111111111111" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:275:38
+  n107 <= not heartbeat_int;
+  -- ../src/hdl/core/nebkiso_top.vhd:273:17
+  n109 <= n103 when n106 = '0' else "0000000000000000000000000";
+  -- ../src/hdl/core/nebkiso_top.vhd:273:17
+  n110 <= heartbeat_int when n106 = '0' else n107;
+  -- ../src/hdl/core/nebkiso_top.vhd:268:13
+  n112 <= n109 when system_rst = '0' else "0000000000000000000000000";
+  -- ../src/hdl/core/nebkiso_top.vhd:268:13
+  n114 <= n110 when system_rst = '0' else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:290:62
+  n121 <= '1' when error_status = "0000000000000000" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:290:45
+  n122 <= n121 and pll_locked;
+  -- ../src/hdl/core/nebkiso_top.vhd:290:25
+  n124 <= current_state when n122 = '0' else "001";
+  -- ../src/hdl/core/nebkiso_top.vhd:289:21
+  n126 <= '1' when current_state = "000" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:297:48
+  n128 <= '1' when wrap_operational_mode /= "00" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:297:73
+  n130 <= '1' when error_status = "0000000000000000" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:297:56
+  n131 <= n130 and n128;
+  -- ../src/hdl/core/nebkiso_top.vhd:297:25
+  n133 <= current_state when n131 = '0' else "011";
+  -- ../src/hdl/core/nebkiso_top.vhd:295:25
+  n135 <= n133 when wrap_cal_mode = '0' else "010";
+  -- ../src/hdl/core/nebkiso_top.vhd:294:21
+  n137 <= '1' when current_state = "001" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:302:37
+  n138 <= not wrap_cal_mode;
+  -- ../src/hdl/core/nebkiso_top.vhd:302:25
+  n140 <= current_state when n138 = '0' else "001";
+  -- ../src/hdl/core/nebkiso_top.vhd:301:21
+  n142 <= '1' when current_state = "010" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:307:41
+  n144 <= '1' when error_status /= "0000000000000000" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:309:58
+  n145 <= emergency_stop_int_a or emergency_stop_int_b;
+  -- ../src/hdl/core/nebkiso_top.vhd:309:25
+  n147 <= current_state when n145 = '0' else "100";
+  -- ../src/hdl/core/nebkiso_top.vhd:307:25
+  n149 <= n147 when n144 = '0' else "110";
+  -- ../src/hdl/core/nebkiso_top.vhd:306:21
+  n151 <= '1' when current_state = "011" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:314:63
+  n153 <= '1' when error_status = "0000000000000000" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:314:46
+  n154 <= n153 and wrap_error_reset;
+  -- ../src/hdl/core/nebkiso_top.vhd:314:25
+  n156 <= current_state when n154 = '0' else "001";
+  -- ../src/hdl/core/nebkiso_top.vhd:313:21
+  n158 <= '1' when current_state = "100" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:319:63
+  n160 <= '1' when error_status = "0000000000000000" else '0';
+  -- ../src/hdl/core/nebkiso_top.vhd:319:46
+  n161 <= n160 and wrap_error_reset;
+  -- ../src/hdl/core/nebkiso_top.vhd:319:25
+  n163 <= current_state when n161 = '0' else "001";
+  -- ../src/hdl/core/nebkiso_top.vhd:318:21
+  n165 <= '1' when current_state = "110" else '0';
+  n166 <= n165 & n158 & n151 & n142 & n137 & n126;
+  -- ../src/hdl/core/nebkiso_top.vhd:288:17
+  with n166 select n168 <=
+    n163 when "100000",
+    n156 when "010000",
+    n149 when "001000",
+    n140 when "000100",
+    n135 when "000010",
+    n124 when "000001",
+    "000" when others;
+  -- ../src/hdl/core/nebkiso_top.vhd:285:13
+  n170 <= n168 when system_rst = '0' else "000";
+  -- ../src/hdl/core/nebkiso_top.vhd:332:46
+  n173 <= emergency_stop_int_a and emergency_stop_int_b;
+  -- ../src/hdl/core/nebkiso_top.vhd:333:46
+  n174 <= emergency_stop_int_a and emergency_stop_int_b;
+  -- ../src/hdl/core/nebkiso_top.vhd:334:46
+  n175 <= ventilation_on_int_a and ventilation_on_int_b;
+  -- ../src/hdl/core/nebkiso_top.vhd:335:46
+  n176 <= ventilation_on_int_a and ventilation_on_int_b;
+  -- ../src/hdl/core/nebkiso_top.vhd:339:38
+  n179 <= sensor_status (2 downto 0);
+  -- ../src/hdl/core/nebkiso_top.vhd:338:97
+  n180 <= current_state & n179;
+  -- ../src/hdl/core/nebkiso_top.vhd:339:51
+  n181 <= n180 & pll_locked;
+  -- ../src/hdl/core/nebkiso_top.vhd:340:36
+  n182 <= n181 & watchdog_timeout;
+  -- ../src/hdl/core/nebkiso_top.vhd:345:31
+  n183 <= error_status (7 downto 0);
+  -- ../src/hdl/core/nebkiso_top.vhd:346:22
+  n184 <= not watchdog_timeout;
+  -- ../src/hdl/core/nebkiso_top.vhd:130:9
+  process (clk_sys)
+  begin
+    if rising_edge (clk_sys) then
+      n185 <= n25;
+    end if;
+  end process;
+  -- ../src/hdl/core/nebkiso_top.vhd:130:9
+  process (clk_sys)
+  begin
+    if rising_edge (clk_sys) then
+      n186 <= n38;
+    end if;
+  end process;
+  -- ../src/hdl/core/nebkiso_top.vhd:130:9
+  process (clk_sys)
+  begin
+    if rising_edge (clk_sys) then
+      n187 <= n46;
+    end if;
+  end process;
+  -- ../src/hdl/core/nebkiso_top.vhd:242:9
+  process (clk_sys)
+  begin
+    if rising_edge (clk_sys) then
+      n188 <= n94;
+    end if;
+  end process;
+  -- ../src/hdl/core/nebkiso_top.vhd:242:9
+  process (clk_sys)
+  begin
+    if rising_edge (clk_sys) then
+      n189 <= n96;
+    end if;
+  end process;
+  -- ../src/hdl/core/nebkiso_top.vhd:242:9
+  n190 <= safety_monitor_a_c_error_code & sensor_hub_inst_c_error_flags;
+  -- ../src/hdl/core/nebkiso_top.vhd:130:9
+  process (clk_sys)
+  begin
+    if rising_edge (clk_sys) then
+      n191 <= n40;
+    end if;
+  end process;
+  -- ../src/hdl/core/nebkiso_top.vhd:284:9
+  process (clk_sys)
+  begin
+    if rising_edge (clk_sys) then
+      n192 <= n170;
+    end if;
+  end process;
+  -- ../src/hdl/core/nebkiso_top.vhd:267:9
+  process (clk_sys)
+  begin
+    if rising_edge (clk_sys) then
+      n194 <= n112;
+    end if;
+  end process;
+  -- ../src/hdl/core/nebkiso_top.vhd:267:9
+  process (clk_sys)
+  begin
+    if rising_edge (clk_sys) then
+      n195 <= n114;
+    end if;
+  end process;
+end rtl;

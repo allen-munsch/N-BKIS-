@@ -105,6 +105,11 @@ architecture behavioral of nebkiso_top is
     
     -- Heartbeat generator
     signal heartbeat_counter : unsigned(24 downto 0);
+    signal heartbeat_int    : std_logic;
+
+    -- Internal status signals
+    signal system_status_int : std_logic_vector(7 downto 0);
+    signal uart_tx_int      : std_logic;
     
 begin
     -- Clock management instantiation
@@ -130,8 +135,13 @@ begin
             if rst_n_sync = '0' or watchdog_timeout = '1' or 
                watchdog_error = '1' or pll_locked = '0' then
                 system_rst <= '1';
+                error_counter <= (others => '0');  -- Initialize counter
             else
                 system_rst <= '0';
+                -- Increment error counter when there are errors
+                if error_status /= x"0000" then
+                    error_counter <= error_counter + 1;
+                end if;
             end if;
             
             -- Additional safety reset includes error conditions
@@ -211,6 +221,20 @@ begin
             error_code       => open,
             error_location   => open
         );
+
+    -- UART controller instantiation
+    uart_ctrl : entity work.uart_controller
+        port map (
+            clk      => clk_sys,
+            rst      => system_rst,
+            rx       => uart_rx,
+            tx       => uart_tx_int,
+            tx_data  => x"00",  -- Connect to actual data source
+            tx_start => '0',    -- Connect to actual control
+            tx_busy  => open,
+            rx_data  => open,
+            rx_done  => open
+        );
     
     -- Watchdog process
     watchdog_proc : process(clk_sys)
@@ -243,12 +267,12 @@ begin
         if rising_edge(clk_sys) then
             if system_rst = '1' then
                 heartbeat_counter <= (others => '0');
-                heartbeat <= '0';
+                heartbeat_int <= '0';
             else
                 heartbeat_counter <= heartbeat_counter + 1;
                 if heartbeat_counter = x"1FFFFFF" then
                     heartbeat_counter <= (others => '0');
-                    heartbeat <= not heartbeat;
+                    heartbeat_int <= not heartbeat_int;
                 end if;
             end if;
         end if;
@@ -310,17 +334,17 @@ begin
     ventilation_on_a <= ventilation_on_int_a and ventilation_on_int_b;
     ventilation_on_b <= ventilation_on_int_a and ventilation_on_int_b;
     
-    -- Status outputs
-    system_status <= std_logic_vector(to_unsigned(system_state_type'pos(current_state), 2)) & 
-                    sensor_status(3 downto 0) &
-                    pll_locked &
-                    watchdog_timeout &
-                    safety_rst;
+    -- Generate system status
+    system_status_int <= std_logic_vector(to_unsigned(system_state_type'pos(current_state), 3)) & 
+                        sensor_status(2 downto 0) &
+                        pll_locked &
+                        watchdog_timeout;
     
-    -- Error code output
+    -- Drive all outputs
+    system_status <= system_status_int;
     error_code <= error_status(7 downto 0);
-    
-    -- Watchdog kick output
     watchdog_kick <= not watchdog_timeout;
+    uart_tx <= uart_tx_int;
+    heartbeat <= heartbeat_int;
 
 end behavioral;

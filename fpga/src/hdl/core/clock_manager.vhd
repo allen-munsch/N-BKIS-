@@ -16,9 +16,9 @@ entity clock_manager is
 end clock_manager;
 
 architecture behavioral of clock_manager is
-    -- Clock generation and management implementation
-    -- This would typically use your FPGA's specific clock management primitives
-    -- Example shown here is simplified
+    -- Internal signals for clock states
+    signal clk_sample_int  : std_logic;
+    signal clk_control_int : std_logic;
 begin
     -- Implementation would use PLL/MMCM for actual clock generation
     process(clk_in, rst)
@@ -28,12 +28,14 @@ begin
         if rst = '1' then
             counter_sample := (others => '0');
             counter_control := (others => '0');
+            clk_sample_int <= '0';
+            clk_control_int <= '0';
             locked <= '0';
         elsif rising_edge(clk_in) then
             -- Generate sample clock (1MHz)
             if counter_sample = 99 then  -- Divide by 100
                 counter_sample := (others => '0');
-                clk_sample <= not clk_sample;
+                clk_sample_int <= not clk_sample_int;
             else
                 counter_sample := counter_sample + 1;
             end if;
@@ -41,7 +43,7 @@ begin
             -- Generate control clock (10kHz)
             if counter_control = 9999 then  -- Divide by 10000
                 counter_control := (others => '0');
-                clk_control <= not clk_control;
+                clk_control_int <= not clk_control_int;
             else
                 counter_control := counter_control + 1;
             end if;
@@ -49,7 +51,10 @@ begin
             locked <= '1';
         end if;
     end process;
-    
-    -- System clock is same as input clock
+
+    -- Drive output clocks
     clk_sys <= clk_in;
+    clk_sample <= clk_sample_int;
+    clk_control <= clk_control_int;
+
 end behavioral;

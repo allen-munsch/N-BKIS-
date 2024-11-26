@@ -7,6 +7,11 @@ make
 make test
 make sim_sensor
 make view_sensor
+
+# For safety monitor
+make fpga TOP_ENTITY=safety_monitor
+# For sensor hub
+make fpga TOP_ENTITY=sensor_hub
 ```
 
 ```
